@@ -66,26 +66,34 @@ const HabitScreen = ({ navigation }) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt, gestureState) => {
         setDraggedHabit(habit);
+        
+        // Set the initial offset to the current position
         dragPosition.setOffset({
           x: dragPosition.x._value,
           y: dragPosition.y._value,
         });
+        
+        // Reset the value to 0 so we can track the delta
         dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
-        dragPosition.setValue({ x: gestureState.dx, y: gestureState.dy });
+        // Update position with the gesture delta - no restrictions
+        dragPosition.setValue({ 
+          x: gestureState.dx, 
+          y: gestureState.dy 
+        });
         
-        // Check if dragging over drop zones
-        const dropZoneY = screenHeight - 200; // Approximate Y position of drop zones
+        // Simple drop zone detection based on screen position
+        const dropZoneY = screenHeight - 200;
         const dropZoneHeight = 120;
         
-        if (gestureState.moveY > dropZoneY && gestureState.moveY < dropZoneY + dropZoneHeight) {
-          // Check X position for left/right drop zones
-          const leftZoneX = 20; // Left drop zone X position
-          const rightZoneX = screenWidth / 2 + 20; // Right drop zone X position
-          const zoneWidth = (screenWidth - 80) / 2; // Width of each drop zone
+        // Only check drop zones when card is in the bottom area
+        if (gestureState.moveY > dropZoneY) {
+          const leftZoneX = 20;
+          const rightZoneX = screenWidth / 2 + 20;
+          const zoneWidth = (screenWidth - 80) / 2;
           
           if (gestureState.moveX > leftZoneX && gestureState.moveX < leftZoneX + zoneWidth) {
             setActiveDropZone('complete');
@@ -98,20 +106,24 @@ const HabitScreen = ({ navigation }) => {
           setActiveDropZone(null);
         }
       },
-      onPanResponderRelease: () => {
+      onPanResponderRelease: (evt, gestureState) => {
+        // Flatten the offset and value
         dragPosition.flattenOffset();
         
         if (draggedHabit && activeDropZone) {
           handleDrop(activeDropZone);
         }
         
-        setDraggedHabit(null);
-        setActiveDropZone(null);
-        
+        // Animate back to original position
         Animated.spring(dragPosition, {
           toValue: { x: 0, y: 0 },
+          tension: 100,
+          friction: 8,
           useNativeDriver: false,
         }).start();
+        
+        setDraggedHabit(null);
+        setActiveDropZone(null);
       },
     });
   };
@@ -138,7 +150,20 @@ const HabitScreen = ({ navigation }) => {
           styles.habitCard,
           isDragging && styles.draggingCard,
           isDragging && {
-            transform: dragPosition.getTranslateTransform(),
+            transform: [
+              {
+                translateX: dragPosition.x,
+              },
+              {
+                translateY: dragPosition.y,
+              },
+              { 
+                rotate: dragPosition.y.interpolate({
+                  inputRange: [-100, 0, 100],
+                  outputRange: ['-5deg', '0deg', '5deg']
+                })
+              }
+            ],
             zIndex: 1000,
             elevation: 10,
           }
@@ -281,6 +306,10 @@ const styles = StyleSheet.create({
   },
   draggingCard: {
     ...SHADOWS.dark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 15,
   },
   cardContent: {
     flexDirection: 'row',
@@ -356,12 +385,16 @@ const styles = StyleSheet.create({
   },
   activeDropZone: {
     backgroundColor: COLORS.lightGray,
-    transform: [{ scale: 1.05 }],
   },
   highlightedDropZone: {
     backgroundColor: COLORS.primary + '20',
     borderColor: COLORS.primary,
     borderWidth: 3,
+    borderStyle: 'solid',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   dropZoneText: {
     ...FONTS.bold,
