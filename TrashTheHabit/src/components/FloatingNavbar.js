@@ -30,6 +30,17 @@ const FloatingNavbar = ({
     return currentItem ? currentItem.icon : 'home';
   };
 
+  // Auto-close timer for expanded navbar
+  useEffect(() => {
+    let timer;
+    if (isExpanded) {
+      timer = setTimeout(() => {
+        setIsExpanded(false);
+      }, 3000); // Close after 3 seconds
+    }
+    return () => clearTimeout(timer);
+  }, [isExpanded]);
+
   // Handle navbar visibility timing
   useEffect(() => {
     if (hasInteracted) return; // Don't auto-hide if user has interacted
@@ -113,6 +124,8 @@ const FloatingNavbar = ({
   };
 
   const handleNavigation = (routeName) => {
+    console.log('Navigating to:', routeName); // Debug log
+    
     setHasInteracted(true);
     setIsVisible(true);
     
@@ -131,7 +144,12 @@ const FloatingNavbar = ({
       setIsExpanded(false);
     });
 
-    onNavigate(routeName);
+    // Call the navigation function
+    if (onNavigate) {
+      onNavigate(routeName);
+    } else {
+      console.error('onNavigate function is not provided');
+    }
   };
 
   // Reset interaction state when route changes
@@ -197,18 +215,14 @@ const FloatingNavbar = ({
             </TouchableOpacity>
           ))}
           
-          {/* Close button */}
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={handleToggle}
-            activeOpacity={0.7}
-          >
+          {/* Down arrow indicator */}
+          <View style={styles.downArrow}>
             <Ionicons
-              name="close"
+              name="chevron-down"
               size={20}
               color={COLORS.textSecondary}
             />
-          </TouchableOpacity>
+          </View>
         </Animated.View>
       )}
     </Animated.View>
@@ -265,14 +279,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     ...SHADOWS.medium,
   },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.lightGray,
+  downArrow: {
     marginTop: SIZES.sm,
+    alignItems: 'center',
   },
 });
 
