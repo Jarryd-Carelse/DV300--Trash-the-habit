@@ -184,20 +184,20 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   content: {
     flex: 1,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.font,
-    color: COLORS.darkGray,
+    color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     marginLeft: SPACING.lg,
     marginTop: SPACING.lg,
@@ -217,11 +217,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   settingLeft: {
     flexDirection: 'row',
@@ -243,13 +243,13 @@ const styles = StyleSheet.create({
   settingTitle: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   settingSubtitle: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   footer: {
     alignItems: 'center',
@@ -258,13 +258,13 @@ const styles = StyleSheet.create({
   versionText: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
   copyrightText: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
 });
 

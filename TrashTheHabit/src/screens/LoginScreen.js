@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   form: {
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   signUpText: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
 });
 

@@ -1,181 +1,108 @@
 # Trash the Habit
 
-A React Native habit-breaking app designed for one-handed use, built with Expo.
+A React Native + Expo Go app designed to help users break bad habits through an intuitive drag-and-drop interface.
 
 ## 🎯 Features
 
-- **One-Handed Design**: Custom floating navbar that can be positioned on left or right side
-- **Habit Management**: Add, complete, and trash habits with intuitive drag-and-drop interface
-- **Progress Tracking**: Visual statistics and charts showing your habit-breaking journey
-- **Customizable Settings**: Toggle sound, haptics, notifications, and navbar position
-- **Clean UI**: Modern, minimalist design with green and red color scheme
-- **Local Storage**: All data persists locally using AsyncStorage
+### Home Screen (Main Dashboard)
+- **Welcome Header**: Personalized greeting with user name
+- **Habit Cards**: Display current habits with emojis and drag handles
+- **Drag & Drop**: Long press to drag habits to completion or trash zones
+- **Drop Zones**: 
+  - ✅ Complete Zone (Green) - for successfully avoided habits
+  - 🗑️ Trash Zone (Red) - for habits that were indulged in
+- **Empty State**: Motivational message when all habits are processed
+- **Floating Navigation**: One-handed navigation bar
+
+### Navigation
+- **Home**: Main habit management screen
+- **Add Habit**: Create new habits to track
+- **Progress**: View habit-breaking statistics
+- **Settings**: Customize app preferences
 
 ## 🚀 Getting Started
 
-### Prerequisites
+1. **Install Dependencies**
+   ```bash
+   cd TrashTheHabit
+   npm install
+   ```
 
-- Node.js (v14 or higher)
-- npm or yarn
-- Expo CLI
-- iOS Simulator or Android Emulator (or physical device with Expo Go)
+2. **Start the App**
+   ```bash
+   npm start
+   ```
 
-### Installation
+3. **Run on Device**
+   - Scan QR code with Expo Go app
+   - Or press 'i' for iOS simulator
+   - Or press 'a' for Android emulator
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd TrashTheHabit
-```
+## 📱 Usage
 
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm start
-```
-
-4. Run on your preferred platform:
-```bash
-# iOS
-npm run ios
-
-# Android
-npm run android
-
-# Web
-npm run web
-```
-
-## 📱 App Structure
-
-### Screens
-
-- **Login Screen**: Email/password authentication
-- **Sign Up Screen**: Create new account
-- **Habit Screen**: Main screen with habit cards and drop zones
-- **Add Habit Screen**: Create new habits
-- **Progress Screen**: Statistics and charts
-- **Settings Screen**: App preferences and account management
-
-### Components
-
-- **CustomButton**: Reusable button component with multiple variants
-- **CustomInput**: Form input with validation and styling
-- **FloatingNavbar**: Custom navigation bar with positioning
-- **HabitCard**: Individual habit display with stats
-- **DropZone**: Areas for completing or trashing habits
+### Managing Habits
+1. **View Habits**: See your current habits on the home screen
+2. **Drag to Complete**: Long press and drag a habit to the green "Complete" zone when you successfully avoid it
+3. **Drag to Trash**: Long press and drag a habit to the red "Trash" zone when you indulge in it
+4. **Track Progress**: View your completion and trash counts in the empty state
 
 ### Navigation
+- Use the floating navigation bar on the right side
+- Tap icons to switch between screens
+- Navigation is optimized for one-handed use
 
-The app uses a custom floating navbar that:
-- Positions on bottom-right by default
-- Can be moved to bottom-left via settings
-- Always visible and accessible
-- Uses React Navigation for screen management
+## 🛠️ Technical Details
+
+### Built With
+- **React Native**: Cross-platform mobile development
+- **Expo**: Development platform and tools
+- **React Navigation**: Screen navigation
+- **React Native Gesture Handler**: Touch interactions
+- **React Native Reanimated**: Smooth animations
+
+### Key Components
+- `HabitScreen.js`: Main dashboard with drag-and-drop functionality
+- `FloatingNavbar.js`: Navigation component
+- `AppNavigator.js`: Screen routing
+- `theme.js`: Design system and styling constants
+
+### State Management
+- Local state with React hooks
+- Dummy data for demonstration
+- Separate arrays for active, completed, and trashed habits
 
 ## 🎨 Design System
 
 ### Colors
-- **Primary**: #4CAF50 (Green for success)
-- **Accent**: #FF5252 (Red for "trash")
-- **Background**: #F5F5F5 (Light gray)
-- **White**: #FFFFFF
-- **Gray**: #9E9E9E
+- Primary: Green (#4CAF50) for success/completion
+- Accent: Red (#FF5252) for trash/indulgence
+- Background: Light gray (#F5F5F5)
+- White: (#FFFFFF) for cards and content
 
 ### Typography
-- Uses system fonts for optimal performance
-- Consistent font weights and sizes
-- Responsive text scaling
+- Bold: System font, weight 700
+- Medium: System font, weight 500
+- Regular: System font, weight 400
 
 ### Spacing
-- Consistent spacing system (xs, sm, md, lg, xl, xxl)
-- Proper padding and margins for touch targets
+- Consistent spacing system (xs: 4px to xxl: 48px)
+- Proper padding and margins for mobile optimization
 
-## 🔧 Technical Stack
+## 📋 Current Habits (Dummy Data)
+- 💨 Vaping
+- 🍕 Overeating
+- 📱 Doomscrolling
+- ⏰ Procrastinating
+- 😴 Sleeping Late
 
-- **React Native**: Core framework
-- **Expo**: Development platform
-- **React Navigation**: Screen navigation
-- **AsyncStorage**: Local data persistence
-- **Expo Vector Icons**: Icon library
-- **React Native Safe Area Context**: Safe area handling
-
-## 📊 Data Structure
-
-### Habit Object
-```javascript
-{
-  id: string,
-  name: string,
-  category: string,
-  createdAt: string,
-  completedCount: number,
-  trashedCount: number,
-  isActive: boolean
-}
-```
-
-### Progress Object
-```javascript
-{
-  totalHabits: number,
-  completedThisWeek: number,
-  trashedThisWeek: number,
-  longestStreak: number,
-  currentStreak: number,
-  weeklyData: Array,
-  monthlyData: Array
-}
-```
-
-## 🎮 Usage
-
-1. **Login/Sign Up**: Create an account or log in
-2. **Add Habits**: Use the Add Habit screen to create new habits
-3. **Manage Habits**: 
-   - Tap habits to complete or trash them
-   - Long press to delete habits
-   - Drag habits to drop zones (visual feedback)
-4. **Track Progress**: View statistics and charts in Progress screen
-5. **Customize**: Adjust settings in Settings screen
-
-## 🔄 Future Enhancements
-
-- [ ] Real backend integration (Firebase)
-- [ ] Push notifications
-- [ ] Advanced analytics
-- [ ] Social features
-- [ ] Habit streaks and rewards
-- [ ] Dark mode support
-- [ ] Offline sync
-- [ ] Export data functionality
-
-## 🐛 Known Issues
-
-- Disk space constraints limited some features during development
-- Drag-and-drop is currently visual only (no actual drag implementation)
-- Some animations may need optimization for older devices
+## 🔮 Future Enhancements
+- Persistent data storage
+- Habit categories and filtering
+- Progress charts and analytics
+- Push notifications and reminders
+- Social features and sharing
+- Custom habit creation
+- Achievement system
 
 ## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📞 Support
-
-For support or questions, please open an issue in the repository.
-
----
-
-**Trash the Habit** - Break bad habits, build better ones! 🚀 
+This project is for educational and demonstration purposes. 

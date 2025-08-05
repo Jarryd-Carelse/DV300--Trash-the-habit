@@ -145,20 +145,20 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   content: {
     flex: 1,
@@ -173,23 +173,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.md,
   },
   emptyText: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
   },
   habitItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     padding: SPACING.md,
     borderRadius: SIZES.radius,
     marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   habitInfo: {
     flex: 1,
@@ -197,13 +199,13 @@ const styles = StyleSheet.create({
   habitName: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   habitCategory: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   deleteButton: {
     padding: SPACING.sm,

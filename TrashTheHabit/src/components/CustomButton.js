@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   secondaryText: {
-    color: COLORS.darkGray,
+    color: COLORS.text,
   },
   outlineText: {
     color: COLORS.primary,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   disabledText: {
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
 });
 
