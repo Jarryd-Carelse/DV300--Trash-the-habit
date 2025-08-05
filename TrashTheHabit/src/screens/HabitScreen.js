@@ -7,192 +7,217 @@ import {
   Alert,
   Animated,
   PanResponder,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import HabitCard from '../components/HabitCard';
-import DropZone from '../components/DropZone';
-import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getHabitsData, saveHabitsData, getUserData } from '../utils/storage';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS, SPACING, SHADOWS } from '../constants/theme';
+import FloatingNavbar from '../components/FloatingNavbar';
 
-const HabitScreen = () => {
-  const [habits, setHabits] = useState([]);
-  const [user, setUser] = useState(null);
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const HabitScreen = ({ navigation }) => {
+  // Use dummy data as specified in requirements
+  const [habits, setHabits] = useState([
+    { id: 1, name: 'Vaping', emoji: '💨' },
+    { id: 2, name: 'Overeating', emoji: '🍕' },
+    { id: 3, name: 'Doomscrolling', emoji: '📱' },
+    { id: 4, name: 'Procrastinating', emoji: '⏰' },
+    { id: 5, name: 'Sleeping Late', emoji: '😴' },
+  ]);
+  
+  const [completed, setCompleted] = useState([]);
+  const [trashed, setTrashed] = useState([]);
   const [draggedHabit, setDraggedHabit] = useState(null);
-  const [dragAnimation] = useState(new Animated.Value(1));
+  const [dragPosition] = useState(new Animated.ValueXY());
   const [activeDropZone, setActiveDropZone] = useState(null);
+  const [user] = useState({ name: 'Jarryd' });
+  const [currentRoute, setCurrentRoute] = useState('Home');
+  const [navbarPosition, setNavbarPosition] = useState('right');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const handleNavigation = (routeName) => {
+    setCurrentRoute(routeName);
+    navigation.navigate(routeName);
+  };
 
-  const loadData = async () => {
-    try {
-      const habitsData = await getHabitsData();
-      const userData = await getUserData();
-      
-      if (habitsData) {
-        setHabits(habitsData.filter(habit => habit.isActive));
-      }
-      if (userData) {
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
+  const createPanResponder = (habit) => {
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        setDraggedHabit(habit);
+        dragPosition.setOffset({
+          x: dragPosition.x._value,
+          y: dragPosition.y._value,
+        });
+        dragPosition.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        dragPosition.setValue({ x: gestureState.dx, y: gestureState.dy });
+        
+        // Check if dragging over drop zones
+        const dropZoneY = screenHeight - 200; // Approximate Y position of drop zones
+        const dropZoneHeight = 120;
+        
+        if (gestureState.moveY > dropZoneY && gestureState.moveY < dropZoneY + dropZoneHeight) {
+          // Check X position for left/right drop zones
+          const leftZoneX = 20; // Left drop zone X position
+          const rightZoneX = screenWidth / 2 + 20; // Right drop zone X position
+          const zoneWidth = (screenWidth - 80) / 2; // Width of each drop zone
+          
+          if (gestureState.moveX > leftZoneX && gestureState.moveX < leftZoneX + zoneWidth) {
+            setActiveDropZone('complete');
+          } else if (gestureState.moveX > rightZoneX && gestureState.moveX < rightZoneX + zoneWidth) {
+            setActiveDropZone('trash');
+          } else {
+            setActiveDropZone(null);
+          }
+        } else {
+          setActiveDropZone(null);
+        }
+      },
+      onPanResponderRelease: () => {
+        dragPosition.flattenOffset();
+        
+        if (draggedHabit && activeDropZone) {
+          handleDrop(activeDropZone);
+        }
+        
+        setDraggedHabit(null);
+        setActiveDropZone(null);
+        
+        Animated.spring(dragPosition, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: false,
+        }).start();
+      },
+    });
+  };
+
+  const handleDrop = (zoneType) => {
+    if (!draggedHabit) return;
+
+    if (zoneType === 'complete') {
+      setCompleted(prev => [...prev, draggedHabit]);
+      setHabits(prev => prev.filter(h => h.id !== draggedHabit.id));
+    } else if (zoneType === 'trash') {
+      setTrashed(prev => [...prev, draggedHabit]);
+      setHabits(prev => prev.filter(h => h.id !== draggedHabit.id));
     }
   };
 
-  const handleHabitPress = (habit) => {
-    Alert.alert(
-      'Habit Options',
-      `What would you like to do with "${habit.name}"?`,
-      [
-        {
-          text: 'Complete',
-          onPress: () => handleHabitAction(habit, 'complete'),
-        },
-        {
-          text: 'Trash',
-          onPress: () => handleHabitAction(habit, 'trash'),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  const handleHabitLongPress = (habit) => {
-    Alert.alert(
-      'Delete Habit',
-      `Are you sure you want to delete "${habit.name}"?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteHabit(habit.id),
-        },
-      ]
-    );
-  };
-
-  const handleHabitAction = async (habit, action) => {
-    const updatedHabits = habits.map(h => {
-      if (h.id === habit.id) {
-        if (action === 'complete') {
-          return { ...h, completedCount: h.completedCount + 1 };
-        } else if (action === 'trash') {
-          return { ...h, trashedCount: h.trashedCount + 1 };
-        }
-      }
-      return h;
-    });
-
-    setHabits(updatedHabits);
-    await saveHabitsData(updatedHabits);
-
-    // Show success message
-    const message = action === 'complete' 
-      ? `Great job! You completed "${habit.name}"` 
-      : `You trashed "${habit.name}" - keep it up!`;
+  const renderHabitCard = (habit) => {
+    const isDragging = draggedHabit?.id === habit.id;
     
-    Alert.alert('Success', message);
+    return (
+      <Animated.View
+        key={habit.id}
+        style={[
+          styles.habitCard,
+          isDragging && styles.draggingCard,
+          isDragging && {
+            transform: dragPosition.getTranslateTransform(),
+            zIndex: 1000,
+            elevation: 10,
+          }
+        ]}
+        {...createPanResponder(habit).panHandlers}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.dragHandle}>
+            <Text style={styles.dragIcon}>≡</Text>
+          </View>
+          
+          <View style={styles.habitInfo}>
+            <Text style={styles.habitName}>{habit.name}</Text>
+          </View>
+          
+          <View style={styles.emojiContainer}>
+            <Text style={styles.emoji}>{habit.emoji}</Text>
+          </View>
+        </View>
+      </Animated.View>
+    );
   };
 
-  const deleteHabit = async (habitId) => {
-    const updatedHabits = habits.filter(h => h.id !== habitId);
-    setHabits(updatedHabits);
-    await saveHabitsData(updatedHabits);
-  };
-
-  const startDrag = (habit) => {
-    setDraggedHabit(habit);
-    Animated.spring(dragAnimation, {
-      toValue: 0.8,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const endDrag = () => {
-    setDraggedHabit(null);
-    setActiveDropZone(null);
-    Animated.spring(dragAnimation, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleDropZoneEnter = (zoneType) => {
-    setActiveDropZone(zoneType);
-  };
-
-  const handleDropZoneLeave = () => {
-    setActiveDropZone(null);
-  };
-
-  const handleDrop = async (zoneType) => {
-    if (!draggedHabit) return;
-
-    const action = zoneType === 'complete' ? 'complete' : 'trash';
-    await handleHabitAction(draggedHabit, action);
-    endDrag();
+  const renderDropZone = (type) => {
+    const isComplete = type === 'complete';
+    const isActive = activeDropZone === type;
+    const isHighlighted = draggedHabit && isActive;
+    
+    return (
+      <View
+        style={[
+          styles.dropZone,
+          isComplete ? styles.completeZone : styles.trashZone,
+          isActive && styles.activeDropZone,
+          isHighlighted && styles.highlightedDropZone,
+        ]}
+      >
+        <Ionicons
+          name={isComplete ? 'checkmark-circle' : 'trash'}
+          size={32}
+          color={isComplete ? COLORS.success : COLORS.accent}
+        />
+        <Text style={[
+          styles.dropZoneText,
+          { color: isComplete ? COLORS.success : COLORS.accent }
+        ]}>
+          {isComplete ? 'Complete' : 'Trash'}
+        </Text>
+        {isHighlighted && (
+          <View style={styles.dropIndicator}>
+            <Text style={styles.dropIndicatorText}>Drop here!</Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header Section */}
       <View style={styles.header}>
         <Text style={styles.welcomeText}>
-          Welcome back, {user?.name || 'User'}!
+          Welcome back, {user.name}!
         </Text>
         <Text style={styles.subtitle}>
-          Drag habits to complete or trash them
+          Your habits for today
         </Text>
       </View>
 
+      {/* Habits List Section */}
       <ScrollView 
         style={styles.habitsList}
         contentContainerStyle={styles.habitsContent}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!draggedHabit} // Disable scroll when dragging
       >
         {habits.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No habits yet!</Text>
+            <Text style={styles.emptyText}>No habits left. You crushed it! 💪</Text>
             <Text style={styles.emptySubtext}>
-              Add some habits to get started
+              Completed: {completed.length} | Trashed: {trashed.length}
             </Text>
           </View>
         ) : (
-          habits.map((habit) => (
-            <HabitCard
-              key={habit.id}
-              habit={habit}
-              onPress={() => handleHabitPress(habit)}
-              onLongPress={() => handleHabitLongPress(habit)}
-              isDragging={draggedHabit?.id === habit.id}
-              dragOpacity={draggedHabit?.id === habit.id ? dragAnimation : 1}
-            />
-          ))
+          habits.map(renderHabitCard)
         )}
       </ScrollView>
 
+      {/* Drop Zones Section */}
       <View style={styles.dropZonesContainer}>
-        <DropZone
-          type="complete"
-          isActive={activeDropZone === 'complete'}
-          isHighlighted={draggedHabit && activeDropZone === 'complete'}
-          onPress={() => handleDrop('complete')}
-        />
-        <DropZone
-          type="trash"
-          isActive={activeDropZone === 'trash'}
-          isHighlighted={draggedHabit && activeDropZone === 'trash'}
-          onPress={() => handleDrop('trash')}
-        />
+        {renderDropZone('complete')}
+        {renderDropZone('trash')}
       </View>
+
+      {/* Floating Navigation Bar */}
+      <FloatingNavbar
+        currentRoute={currentRoute}
+        onNavigate={handleNavigation}
+        position={navbarPosition}
+      />
     </SafeAreaView>
   );
 };
@@ -204,26 +229,64 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   welcomeText: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   habitsList: {
     flex: 1,
   },
   habitsContent: {
     padding: SPACING.lg,
+  },
+  habitCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.medium,
+  },
+  draggingCard: {
+    ...SHADOWS.dark,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  dragHandle: {
+    marginRight: SPACING.md,
+  },
+  dragIcon: {
+    fontSize: 20,
+    color: COLORS.textSecondary,
+    fontWeight: 'bold',
+  },
+  habitInfo: {
+    flex: 1,
+  },
+  habitName: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.text,
+  },
+  emojiContainer: {
+    marginLeft: SPACING.md,
+  },
+  emoji: {
+    fontSize: 24,
   },
   emptyState: {
     flex: 1,
@@ -234,21 +297,69 @@ const styles = StyleSheet.create({
   emptyText: {
     ...FONTS.bold,
     fontSize: SIZES.large,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
+    textAlign: 'center',
   },
   emptySubtext: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   dropZonesContainer: {
     flexDirection: 'row',
     padding: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    borderTopColor: COLORS.border,
+  },
+  dropZone: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: SPACING.sm,
+    minHeight: 120,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    ...SHADOWS.medium,
+  },
+  completeZone: {
+    borderColor: COLORS.success,
+  },
+  trashZone: {
+    borderColor: COLORS.accent,
+  },
+  activeDropZone: {
+    backgroundColor: COLORS.lightGray,
+    transform: [{ scale: 1.05 }],
+  },
+  highlightedDropZone: {
+    backgroundColor: COLORS.primary + '20',
+    borderColor: COLORS.primary,
+    borderWidth: 3,
+  },
+  dropZoneText: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+  },
+  dropIndicator: {
+    position: 'absolute',
+    top: -10,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: SIZES.radius,
+  },
+  dropIndicatorText: {
+    ...FONTS.medium,
+    color: COLORS.white,
+    fontSize: SIZES.small,
   },
 });
 

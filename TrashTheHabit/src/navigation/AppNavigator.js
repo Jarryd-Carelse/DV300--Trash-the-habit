@@ -1,68 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
-import FloatingNavbar from '../components/FloatingNavbar';
 import HabitScreen from '../screens/HabitScreen';
 import AddHabitScreen from '../screens/AddHabitScreen';
 import ProgressScreen from '../screens/ProgressScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import { getUserSettings } from '../utils/storage';
+import LoginScreen from '../screens/LoginScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+import { getLoginStatus } from '../utils/storage';
 
 const Stack = createStackNavigator();
 
-const AppNavigator = ({ navigation }) => {
-  const [currentRoute, setCurrentRoute] = useState('Home');
-  const [navbarPosition, setNavbarPosition] = useState('right');
+const AppNavigator = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadNavbarPosition();
+    checkLoginStatus();
   }, []);
 
-  const loadNavbarPosition = async () => {
+  const checkLoginStatus = async () => {
     try {
-      const settings = await getUserSettings();
-      if (settings?.navbarPosition) {
-        setNavbarPosition(settings.navbarPosition);
-      }
+      const loginStatus = await getLoginStatus();
+      setIsLoggedIn(loginStatus);
     } catch (error) {
-      console.error('Error loading navbar position:', error);
+      console.error('Error checking login status:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleNavigation = (routeName) => {
-    setCurrentRoute(routeName);
-    // Navigate to the screen
-    if (navigation && navigation.navigate) {
-      navigation.navigate(routeName);
-    }
-  };
+  if (isLoading) {
+    return null; // You could add a loading screen here
+  }
 
   return (
-    <View style={styles.container}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen name="Home" component={HabitScreen} />
-        <Stack.Screen name="AddHabit" component={AddHabitScreen} />
-        <Stack.Screen name="Progress" component={ProgressScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-      </Stack.Navigator>
-      
-      <FloatingNavbar
-        currentRoute={currentRoute}
-        onNavigate={handleNavigation}
-        position={navbarPosition}
-      />
-    </View>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+      initialRouteName={isLoggedIn ? "Home" : "Login"}
+    >
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen name="Home" component={HabitScreen} />
+      <Stack.Screen name="AddHabit" component={AddHabitScreen} />
+      <Stack.Screen name="Progress" component={ProgressScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+    </Stack.Navigator>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
 
 export default AppNavigator; 

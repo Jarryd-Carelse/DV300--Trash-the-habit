@@ -127,20 +127,20 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   content: {
     flex: 1,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   loadingText: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.xxl,
   },
@@ -160,12 +160,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   statCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderRadius: SIZES.radius,
     padding: SPACING.md,
     alignItems: 'center',
     width: '48%',
     marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   iconContainer: {
     width: 50,
@@ -178,24 +180,26 @@ const styles = StyleSheet.create({
   statValue: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   statTitle: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   chartSection: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderRadius: SIZES.radius,
     padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.lg,
   },
   chartContainer: {
@@ -229,7 +233,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   legend: {
     flexDirection: 'row',
@@ -249,7 +253,7 @@ const styles = StyleSheet.create({
   legendText: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
 });
 

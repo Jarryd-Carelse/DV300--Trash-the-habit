@@ -57,7 +57,7 @@ const CustomInput = ({
             inputStyle
           ]}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.gray}
+          placeholderTextColor={COLORS.textSecondary}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !showPassword}
@@ -81,7 +81,7 @@ const CustomInput = ({
             <Ionicons
               name={showPassword ? 'eye-off' : 'eye'}
               size={20}
-              color={COLORS.gray}
+              color={COLORS.textSecondary}
             />
           </TouchableOpacity>
         )}
@@ -97,15 +97,15 @@ const styles = StyleSheet.create({
   },
   label: {
     ...FONTS.medium,
-    color: COLORS.darkGray,
+    color: COLORS.text,
     marginBottom: SIZES.sm,
     fontSize: SIZES.font,
   },
   inputContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderRadius: SIZES.radius,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
     ...SHADOWS.light,
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.padding,
     paddingVertical: SIZES.padding,
     fontSize: SIZES.font,
-    color: COLORS.black,
+    color: COLORS.text,
     ...FONTS.regular,
   },
   inputMultiline: {
@@ -136,7 +136,8 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: SIZES.sm,
-    marginRight: SIZES.sm,
+    paddingRight: SIZES.md,
+    marginRight: SIZES.lg,
   },
   errorText: {
     ...FONTS.regular,

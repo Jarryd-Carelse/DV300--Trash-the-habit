@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getUserSettings, saveUserSettings, clearAllData } from '../utils/storage';
+import { getUserSettings, saveUserSettings, clearAllData, setLoginStatus } from '../utils/storage';
 
 const SettingsScreen = ({ navigation }) => {
   const [settings, setSettings] = useState({
@@ -60,7 +60,7 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -69,7 +69,19 @@ const SettingsScreen = ({ navigation }) => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => navigation.replace('Login'),
+          onPress: async () => {
+            try {
+              // Clear login status
+              await setLoginStatus(false);
+              
+              // Navigate to login screen
+              navigation.replace('Login');
+            } catch (error) {
+              console.error('Error during logout:', error);
+              // Still navigate to login even if clearing data fails
+              navigation.replace('Login');
+            }
+          },
         },
       ]
     );
@@ -184,20 +196,20 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   content: {
     flex: 1,
@@ -208,7 +220,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.font,
-    color: COLORS.darkGray,
+    color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     marginLeft: SPACING.lg,
     marginTop: SPACING.lg,
@@ -217,11 +229,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   settingLeft: {
     flexDirection: 'row',
@@ -243,13 +255,13 @@ const styles = StyleSheet.create({
   settingTitle: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.black,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   settingSubtitle: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
   footer: {
     alignItems: 'center',
@@ -258,13 +270,13 @@ const styles = StyleSheet.create({
   versionText: {
     ...FONTS.medium,
     fontSize: SIZES.font,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
   copyrightText: {
     ...FONTS.regular,
     fontSize: SIZES.small,
-    color: COLORS.gray,
+    color: COLORS.textSecondary,
   },
 });
 

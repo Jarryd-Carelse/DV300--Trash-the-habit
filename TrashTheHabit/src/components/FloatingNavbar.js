@@ -30,7 +30,7 @@ const FloatingNavbar = ({
   const getIconStyle = (itemKey) => {
     const isActive = currentRoute === itemKey;
     return {
-      color: isActive ? COLORS.white : COLORS.darkGray,
+      color: isActive ? COLORS.white : COLORS.textSecondary,
       fontSize: 24,
     };
   };
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 30,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
     borderRadius: 25,
     paddingVertical: SIZES.sm,
     paddingHorizontal: SIZES.sm,
@@ -66,6 +66,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 200,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.dark,
   },
   navbarRight: {
