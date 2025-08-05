@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { getUserSettings, saveUserSettings, clearAllData, setLoginStatus } from '../utils/storage';
@@ -20,6 +21,7 @@ const SettingsScreen = ({ navigation }) => {
     hapticsEnabled: true,
     notificationsEnabled: true,
   });
+  const [currentRoute, setCurrentRoute] = useState('Settings');
 
   useEffect(() => {
     loadSettings();
@@ -34,6 +36,11 @@ const SettingsScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading settings:', error);
     }
+  };
+
+  const handleNavigation = (routeName) => {
+    setCurrentRoute(routeName);
+    navigation.navigate(routeName);
   };
 
   const updateSetting = async (key, value) => {
@@ -185,6 +192,13 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.copyrightText}>© 2024 Trash the Habit</Text>
         </View>
       </ScrollView>
+
+      {/* Floating Navigation Bar */}
+      <FloatingNavbar
+        currentRoute={currentRoute}
+        onNavigate={handleNavigation}
+        position={settings.navbarPosition}
+      />
     </SafeAreaView>
   );
 };

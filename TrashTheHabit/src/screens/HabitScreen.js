@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING, SHADOWS } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
+import { getUserSettings } from '../utils/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -34,7 +35,27 @@ const HabitScreen = ({ navigation }) => {
   const [activeDropZone, setActiveDropZone] = useState(null);
   const [user] = useState({ name: 'Jarryd' });
   const [currentRoute, setCurrentRoute] = useState('Home');
-  const [navbarPosition, setNavbarPosition] = useState('right');
+  const [settings, setSettings] = useState({
+    navbarPosition: 'right',
+    soundEnabled: true,
+    hapticsEnabled: true,
+    notificationsEnabled: true,
+  });
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const userSettings = await getUserSettings();
+      if (userSettings) {
+        setSettings(userSettings);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
 
   const handleNavigation = (routeName) => {
     setCurrentRoute(routeName);
@@ -216,7 +237,7 @@ const HabitScreen = ({ navigation }) => {
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
-        position={navbarPosition}
+        position={settings.navbarPosition}
       />
     </SafeAreaView>
   );
