@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Alert, PanResponder, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function App() {
+function AppContent() {
+  const insets = useSafeAreaInsets();
   const [currentScreen, setCurrentScreen] = useState('Home');
   const [habits, setHabits] = useState([
     { id: '1', name: 'Check social media', category: 'Digital', completedCount: 2, trashedCount: 1 },
@@ -367,11 +369,11 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
         {renderScreen()}
         
         {/* Floating Navigation Bar */}
-        <View style={styles.floatingNavbar}>
+        <View style={[styles.floatingNavbar, { bottom: insets.bottom + 20 }]}>
           <TouchableOpacity 
             style={[styles.navItem, currentScreen === 'Home' && styles.navItemActive]}
             onPress={() => setCurrentScreen('Home')}
@@ -435,9 +437,11 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingBottom: 250, // Add bottom padding to prevent content from being hidden behind floating navbar
   },
   habitsList: {
     padding: 20,
+    paddingBottom: 250, // Add bottom padding to prevent content from being hidden behind floating navbar
   },
   habitCard: {
     backgroundColor: '#FFFFFF',
@@ -562,7 +566,6 @@ const styles = StyleSheet.create({
   },
   floatingNavbar: {
     position: 'absolute',
-    bottom: 30,
     right: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 25,
@@ -686,3 +689,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
