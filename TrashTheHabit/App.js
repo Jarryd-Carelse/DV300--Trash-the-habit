@@ -179,7 +179,7 @@ function AppContent() {
                 );
               }}
             >
-              <Ionicons name="menu" size={20} color="#9E9E9E" />
+              <Ionicons name="menu" size={20} color="#B0B0B0" />
             </TouchableOpacity>
           </Animated.View>
         ))}
@@ -231,6 +231,7 @@ function AppContent() {
             <TextInput
               style={styles.textInput}
               placeholder="e.g., Check social media first thing"
+              placeholderTextColor="#666666"
               value={newHabitName}
               onChangeText={setNewHabitName}
               autoCapitalize="words"
@@ -269,7 +270,9 @@ function AppContent() {
             onPress={handleAddHabit}
             disabled={!newHabitName.trim()}
           >
-            <Text style={styles.addButtonText}>Add Habit</Text>
+            <Text style={[styles.addButtonText, !newHabitName.trim() && styles.addButtonTextDisabled]}>
+              Add Habit
+            </Text>
           </TouchableOpacity>
         </View>
         
@@ -368,7 +371,7 @@ function AppContent() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
       <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
         {renderScreen()}
         
@@ -378,28 +381,28 @@ function AppContent() {
             style={[styles.navItem, currentScreen === 'Home' && styles.navItemActive]}
             onPress={() => setCurrentScreen('Home')}
           >
-            <Ionicons name="home" size={24} color={currentScreen === 'Home' ? '#FFFFFF' : '#424242'} />
+            <Ionicons name="home" size={24} color={currentScreen === 'Home' ? '#FFFFFF' : '#B0B0B0'} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.navItem, currentScreen === 'AddHabit' && styles.navItemActive]}
             onPress={() => setCurrentScreen('AddHabit')}
           >
-            <Ionicons name="add-circle" size={24} color={currentScreen === 'AddHabit' ? '#FFFFFF' : '#424242'} />
+            <Ionicons name="add-circle" size={24} color={currentScreen === 'AddHabit' ? '#FFFFFF' : '#B0B0B0'} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.navItem, currentScreen === 'Progress' && styles.navItemActive]}
             onPress={() => setCurrentScreen('Progress')}
           >
-            <Ionicons name="trending-up" size={24} color={currentScreen === 'Progress' ? '#FFFFFF' : '#424242'} />
+            <Ionicons name="trending-up" size={24} color={currentScreen === 'Progress' ? '#FFFFFF' : '#B0B0B0'} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.navItem, currentScreen === 'Settings' && styles.navItemActive]}
             onPress={() => setCurrentScreen('Settings')}
           >
-            <Ionicons name="settings" size={24} color={currentScreen === 'Settings' ? '#FFFFFF' : '#424242'} />
+            <Ionicons name="settings" size={24} color={currentScreen === 'Settings' ? '#FFFFFF' : '#B0B0B0'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -410,30 +413,30 @@ function AppContent() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#121212',
   },
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#121212',
   },
   screen: {
     flex: 1,
   },
   header: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E1E1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#333333',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#9E9E9E',
+    color: '#B0B0B0',
   },
   content: {
     padding: 20,
@@ -444,7 +447,7 @@ const styles = StyleSheet.create({
     paddingBottom: 250, // Add bottom padding to prevent content from being hidden behind floating navbar
   },
   habitCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -452,9 +455,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 3.84,
     elevation: 5,
+    borderWidth: 1,
+    borderColor: '#333333',
   },
   habitInfo: {
     flex: 1,
@@ -462,12 +467,12 @@ const styles = StyleSheet.create({
   habitName: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   habitCategory: {
     fontSize: 14,
-    color: '#9E9E9E',
+    color: '#B0B0B0',
   },
   habitStats: {
     flexDirection: 'row',
@@ -480,26 +485,26 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
-    color: '#424242',
+    color: '#E0E0E0',
     marginLeft: 4,
   },
   dropZones: {
     flexDirection: 'row',
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E1E1E',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: '#333333',
   },
   dropZone: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E1E1E',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 8,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
+    borderColor: '#444444',
     borderStyle: 'dashed',
     minHeight: 120,
   },
@@ -507,11 +512,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 8,
+    color: '#FFFFFF',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 16,
   },
   habitItem: {
@@ -567,7 +573,7 @@ const styles = StyleSheet.create({
   floatingNavbar: {
     position: 'absolute',
     right: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E1E1E',
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 8,
@@ -575,10 +581,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.4,
     shadowRadius: 8.84,
     elevation: 12,
     minHeight: 200,
+    borderWidth: 1,
+    borderColor: '#333333',
   },
   navItem: {
     width: 50,
@@ -600,16 +608,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2A2A',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#444444',
+    color: '#FFFFFF',
   },
   categoryScroll: {
     marginTop: 8,
@@ -618,9 +627,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#444444',
     marginRight: 12,
   },
   categoryChipSelected: {
@@ -629,7 +638,7 @@ const styles = StyleSheet.create({
   },
   categoryChipText: {
     fontSize: 14,
-    color: '#424242',
+    color: '#E0E0E0',
   },
   categoryChipTextSelected: {
     color: '#FFFFFF',
@@ -640,12 +649,22 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   addButtonDisabled: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#444444',
   },
   addButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  addButtonTextDisabled: {
+    color: '#888888',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -660,7 +679,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#9E9E9E',
+    color: '#B0B0B0',
     textAlign: 'center',
     fontStyle: 'italic',
     marginTop: 20,
@@ -670,7 +689,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   dropZoneActive: {
-    backgroundColor: '#E8F5E8',
+    backgroundColor: '#2A4A2A',
     borderColor: '#4CAF50',
     borderWidth: 3,
     transform: [{ scale: 1.05 }],
@@ -687,6 +706,83 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  // Progress Screen Styles
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 20,
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    width: '48%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 8,
+  },
+  statTitle: {
+    fontSize: 14,
+    color: '#B0B0B0',
+    textAlign: 'center',
+  },
+  // Settings Screen Styles
+  settingsList: {
+    padding: 20,
+  },
+  settingItem: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#333333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  settingTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  settingSubtitle: {
+    fontSize: 14,
+    color: '#B0B0B0',
+  },
+  // Add Habit Screen Additional Styles
+  habitItem: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#333333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
 
