@@ -10,17 +10,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getHabitsData, saveHabitsData } from '../utils/storage';
+import { getHabitsData, saveHabitsData, getUserSettings } from '../utils/storage';
 
-const AddHabitScreen = () => {
+const AddHabitScreen = ({ navigation }) => {
   const [habitName, setHabitName] = useState('');
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentRoute, setCurrentRoute] = useState('AddHabit');
+  const [settings, setSettings] = useState({
+    navbarPosition: 'right',
+    soundEnabled: true,
+    hapticsEnabled: true,
+    notificationsEnabled: true,
+  });
 
   useEffect(() => {
     loadHabits();
+    loadSettings();
   }, []);
 
   const loadHabits = async () => {
@@ -32,6 +41,22 @@ const AddHabitScreen = () => {
     } catch (error) {
       console.error('Error loading habits:', error);
     }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const userSettings = await getUserSettings();
+      if (userSettings) {
+        setSettings(userSettings);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleNavigation = (routeName) => {
+    setCurrentRoute(routeName);
+    navigation.navigate(routeName);
   };
 
   const handleAddHabit = async () => {
@@ -134,6 +159,13 @@ const AddHabitScreen = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Floating Navigation Bar */}
+      <FloatingNavbar
+        currentRoute={currentRoute}
+        onNavigate={handleNavigation}
+        position={settings.navbarPosition}
+      />
     </SafeAreaView>
   );
 };

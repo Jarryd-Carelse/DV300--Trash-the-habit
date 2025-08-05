@@ -6,15 +6,24 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getProgressData } from '../utils/storage';
+import { getProgressData, getUserSettings } from '../utils/storage';
 
-const ProgressScreen = () => {
+const ProgressScreen = ({ navigation }) => {
   const [progress, setProgress] = useState(null);
+  const [currentRoute, setCurrentRoute] = useState('Progress');
+  const [settings, setSettings] = useState({
+    navbarPosition: 'right',
+    soundEnabled: true,
+    hapticsEnabled: true,
+    notificationsEnabled: true,
+  });
 
   useEffect(() => {
     loadProgress();
+    loadSettings();
   }, []);
 
   const loadProgress = async () => {
@@ -26,6 +35,22 @@ const ProgressScreen = () => {
     } catch (error) {
       console.error('Error loading progress:', error);
     }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const userSettings = await getUserSettings();
+      if (userSettings) {
+        setSettings(userSettings);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleNavigation = (routeName) => {
+    setCurrentRoute(routeName);
+    navigation.navigate(routeName);
   };
 
   const StatCard = ({ title, value, icon, color }) => (
@@ -42,6 +67,13 @@ const ProgressScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <Text style={styles.loadingText}>Loading progress...</Text>
+        
+        {/* Floating Navigation Bar */}
+        <FloatingNavbar
+          currentRoute={currentRoute}
+          onNavigate={handleNavigation}
+          position={settings.navbarPosition}
+        />
       </SafeAreaView>
     );
   }
@@ -116,6 +148,13 @@ const ProgressScreen = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Floating Navigation Bar */}
+      <FloatingNavbar
+        currentRoute={currentRoute}
+        onNavigate={handleNavigation}
+        position={settings.navbarPosition}
+      />
     </SafeAreaView>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
@@ -6,11 +6,17 @@ import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 const FloatingNavbar = ({ 
   currentRoute, 
   onNavigate, 
-  position = 'right' // 'left' or 'right'
+  position = 'right' 
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [scaleAnimation] = useState(new Animated.Value(1));
+  const [opacityAnimation] = useState(new Animated.Value(1));
+  const [isVisible, setIsVisible] = useState(true);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
   const navItems = [
     { key: 'Home', icon: 'home', label: 'Home' },
-    { key: 'AddHabit', icon: 'add-circle', label: 'Add' },
+    { key: 'AddHabit', icon: 'add-circle', label: 'Add Habit' },
     { key: 'Progress', icon: 'trending-up', label: 'Progress' },
     { key: 'Settings', icon: 'settings', label: 'Settings' },
   ];
@@ -19,38 +25,193 @@ const FloatingNavbar = ({
     return position === 'left' ? styles.navbarLeft : styles.navbarRight;
   };
 
-  const getItemStyle = (itemKey) => {
-    const isActive = currentRoute === itemKey;
-    return [
-      styles.navItem,
-      isActive && styles.navItemActive,
-    ];
+  const getCurrentScreenIcon = () => {
+    const currentItem = navItems.find(item => item.key === currentRoute);
+    return currentItem ? currentItem.icon : 'home';
   };
 
-  const getIconStyle = (itemKey) => {
-    const isActive = currentRoute === itemKey;
-    return {
-      color: isActive ? COLORS.white : COLORS.textSecondary,
-      fontSize: 24,
-    };
+  // Handle navbar visibility timing
+  useEffect(() => {
+    if (hasInteracted) return; // Don't auto-hide if user has interacted
+
+    const timer = setTimeout(() => {
+      // Start pulsing animation
+      const pulseAnimation = Animated.sequence([
+        Animated.timing(scaleAnimation, {
+          toValue: 1.1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnimation, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnimation, {
+          toValue: 1.1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnimation, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnimation, {
+          toValue: 1.1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnimation, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      pulseAnimation.start(() => {
+        // After pulsing, fade to transparent
+        Animated.timing(opacityAnimation, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }).start(() => {
+          setIsVisible(false);
+        });
+      });
+    }, 2000); // Start after 2 seconds
+
+    return () => clearTimeout(timer);
+  }, [currentRoute, hasInteracted]);
+
+  const handleToggle = () => {
+    setHasInteracted(true);
+    setIsVisible(true);
+    
+    // Reset opacity to full
+    Animated.timing(opacityAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    if (isExpanded) {
+      // Collapse
+      Animated.spring(scaleAnimation, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // Expand
+      Animated.spring(scaleAnimation, {
+        toValue: 1.1,
+        useNativeDriver: true,
+      }).start();
+    }
+    
+    setIsExpanded(!isExpanded);
   };
+
+  const handleNavigation = (routeName) => {
+    setHasInteracted(true);
+    setIsVisible(true);
+    
+    // Reset opacity to full
+    Animated.timing(opacityAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Collapse navbar after navigation
+    Animated.spring(scaleAnimation, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start(() => {
+      setIsExpanded(false);
+    });
+
+    onNavigate(routeName);
+  };
+
+  // Reset interaction state when route changes
+  useEffect(() => {
+    setHasInteracted(false);
+    setIsVisible(true);
+    Animated.timing(opacityAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [currentRoute]);
 
   return (
-    <View style={[styles.container, getNavbarStyle()]}>
-      {navItems.map((item, index) => (
+    <Animated.View 
+      style={[
+        styles.container, 
+        getNavbarStyle(),
+        {
+          opacity: opacityAnimation,
+          transform: [{ scale: scaleAnimation }]
+        }
+      ]}
+    >
+      {/* Collapsed state - small circle with current screen icon */}
+      {!isExpanded && (
         <TouchableOpacity
-          key={item.key}
-          style={getItemStyle(item.key)}
-          onPress={() => onNavigate(item.key)}
+          style={styles.collapsedButton}
+          onPress={handleToggle}
           activeOpacity={0.7}
         >
           <Ionicons
-            name={item.icon}
-            style={getIconStyle(item.key)}
+            name={getCurrentScreenIcon()}
+            size={24}
+            color={COLORS.textSecondary}
           />
         </TouchableOpacity>
-      ))}
-    </View>
+      )}
+
+      {/* Expanded state - full navigation bar */}
+      {isExpanded && (
+        <Animated.View 
+          style={[
+            styles.expandedNavbar,
+            { transform: [{ scale: scaleAnimation }] }
+          ]}
+        >
+          {navItems.map((item, index) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[
+                styles.navItem,
+                currentRoute === item.key && styles.navItemActive
+              ]}
+              onPress={() => handleNavigation(item.key)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={item.icon}
+                size={24}
+                color={currentRoute === item.key ? COLORS.white : COLORS.textSecondary}
+              />
+            </TouchableOpacity>
+          ))}
+          
+          {/* Close button */}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={handleToggle}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="close"
+              size={20}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </Animated.View>
   );
 };
 
@@ -58,6 +219,27 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 30,
+  },
+  navbarRight: {
+    right: 20,
+  },
+  navbarLeft: {
+    left: 20,
+  },
+  // Collapsed state - small circle
+  collapsedButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.dark,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  // Expanded state - full navigation bar
+  expandedNavbar: {
     backgroundColor: COLORS.surface,
     borderRadius: 25,
     paddingVertical: SIZES.sm,
@@ -65,16 +247,10 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 200,
+    minHeight: 250,
     borderWidth: 1,
     borderColor: COLORS.border,
     ...SHADOWS.dark,
-  },
-  navbarRight: {
-    right: 20,
-  },
-  navbarLeft: {
-    left: 20,
   },
   navItem: {
     width: 50,
@@ -88,6 +264,15 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: COLORS.primary,
     ...SHADOWS.medium,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.lightGray,
+    marginTop: SIZES.sm,
   },
 });
 
