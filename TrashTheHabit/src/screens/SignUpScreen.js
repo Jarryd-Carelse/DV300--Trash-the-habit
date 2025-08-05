@@ -59,7 +59,7 @@ const SignUpScreen = ({ navigation }) => {
         [
           {
             text: 'OK',
-            onPress: () => navigation.replace('MainApp'),
+            onPress: () => navigation.replace('Home'),
           },
         ]
       );
@@ -122,12 +122,13 @@ const SignUpScreen = ({ navigation }) => {
             />
 
             <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
+              <Text style={styles.loginText}>Already have an account?</Text>
               <CustomButton
                 title="Back to Login"
                 onPress={handleBackToLogin}
                 variant="outline"
                 size="small"
+                style={styles.backToLoginButton}
               />
             </View>
           </View>
@@ -173,15 +174,17 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
   },
   loginContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: SPACING.lg,
   },
   loginText: {
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+  },
+  backToLoginButton: {
+    marginTop: SPACING.xs,
   },
 });
 

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getUserSettings, saveUserSettings, clearAllData } from '../utils/storage';
+import { getUserSettings, saveUserSettings, clearAllData, setLoginStatus } from '../utils/storage';
 
 const SettingsScreen = ({ navigation }) => {
   const [settings, setSettings] = useState({
@@ -60,7 +60,7 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -69,7 +69,19 @@ const SettingsScreen = ({ navigation }) => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => navigation.replace('Login'),
+          onPress: async () => {
+            try {
+              // Clear login status
+              await setLoginStatus(false);
+              
+              // Navigate to login screen
+              navigation.replace('Login');
+            } catch (error) {
+              console.error('Error during logout:', error);
+              // Still navigate to login even if clearing data fails
+              navigation.replace('Login');
+            }
+          },
         },
       ]
     );

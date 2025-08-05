@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
+import { setLoginStatus } from '../utils/storage';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -47,11 +48,10 @@ const LoginScreen = ({ navigation }) => {
       // Check for the specific user credentials
       if (email === 'jarryd@mail.com' && password === '123456') {
         // Set login status
-        const { setLoginStatus } = require('../../utils/storage');
         await setLoginStatus(true);
         
         setLoading(false);
-        navigation.replace('MainApp');
+        navigation.replace('Home');
       } else {
         setLoading(false);
         Alert.alert('Error', 'Invalid credentials. Use jarryd@mail.com / 123456');
@@ -109,12 +109,13 @@ const LoginScreen = ({ navigation }) => {
             />
 
             <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account? </Text>
+              <Text style={styles.signUpText}>Don't have an account?</Text>
               <CustomButton
                 title="Create Account"
                 onPress={handleSignUp}
                 variant="outline"
                 size="small"
+                style={styles.createAccountButton}
               />
             </View>
           </View>
@@ -160,15 +161,17 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
   },
   signUpContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: SPACING.lg,
   },
   signUpText: {
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+  },
+  createAccountButton: {
+    marginTop: SPACING.xs,
   },
 });
 
