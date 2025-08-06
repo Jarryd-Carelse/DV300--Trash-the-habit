@@ -68,7 +68,7 @@ const ProgressScreen = ({ navigation }) => {
       <SafeAreaView style={styles.container}>
         <Text style={styles.loadingText}>Loading progress...</Text>
         
-        {/* Floating Navigation Bar */}
+    
         <FloatingNavbar
           currentRoute={currentRoute}
           onNavigate={handleNavigation}
@@ -149,7 +149,7 @@ const ProgressScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Floating Navigation Bar */}
+     
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}

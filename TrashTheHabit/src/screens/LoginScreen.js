@@ -45,9 +45,9 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     
     try {
-      // Check for the specific user credentials
+     
       if (email === 'jarryd@mail.com' && password === '123456') {
-        // Set login status
+        
         await setLoginStatus(true);
         
         setLoading(false);

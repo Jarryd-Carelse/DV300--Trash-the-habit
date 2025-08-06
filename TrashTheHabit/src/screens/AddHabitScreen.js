@@ -160,7 +160,7 @@ const AddHabitScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Floating Navigation Bar */}
+    
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}

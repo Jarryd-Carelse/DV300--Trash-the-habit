@@ -30,23 +30,23 @@ const FloatingNavbar = ({
     return currentItem ? currentItem.icon : 'home';
   };
 
-  // Auto-close timer for expanded navbar
+ 
   useEffect(() => {
     let timer;
     if (isExpanded) {
       timer = setTimeout(() => {
         setIsExpanded(false);
-      }, 3000); // Close after 3 seconds
+      }, 3000);
     }
     return () => clearTimeout(timer);
   }, [isExpanded]);
 
-  // Handle navbar visibility timing
+ 
   useEffect(() => {
-    if (hasInteracted) return; // Don't auto-hide if user has interacted
+    if (hasInteracted) return; 
 
     const timer = setTimeout(() => {
-      // Start pulsing animation
+     
       const pulseAnimation = Animated.sequence([
         Animated.timing(scaleAnimation, {
           toValue: 1.1,
@@ -81,7 +81,7 @@ const FloatingNavbar = ({
       ]);
 
       pulseAnimation.start(() => {
-        // After pulsing, fade to transparent
+        
         Animated.timing(opacityAnimation, {
           toValue: 0.3,
           duration: 1000,
@@ -90,7 +90,7 @@ const FloatingNavbar = ({
           setIsVisible(false);
         });
       });
-    }, 2000); // Start after 2 seconds
+    }, 2000); 
 
     return () => clearTimeout(timer);
   }, [currentRoute, hasInteracted]);
@@ -99,7 +99,7 @@ const FloatingNavbar = ({
     setHasInteracted(true);
     setIsVisible(true);
     
-    // Reset opacity to full
+   
     Animated.timing(opacityAnimation, {
       toValue: 1,
       duration: 300,
@@ -107,13 +107,13 @@ const FloatingNavbar = ({
     }).start();
 
     if (isExpanded) {
-      // Collapse
+   
       Animated.spring(scaleAnimation, {
         toValue: 1,
         useNativeDriver: true,
       }).start();
     } else {
-      // Expand
+     
       Animated.spring(scaleAnimation, {
         toValue: 1.1,
         useNativeDriver: true,
@@ -124,19 +124,19 @@ const FloatingNavbar = ({
   };
 
   const handleNavigation = (routeName) => {
-    console.log('Navigating to:', routeName); // Debug log
+    console.log('Navigating to:', routeName); 
     
     setHasInteracted(true);
     setIsVisible(true);
     
-    // Reset opacity to full
+  
     Animated.timing(opacityAnimation, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
 
-    // Collapse navbar after navigation
+ 
     Animated.spring(scaleAnimation, {
       toValue: 1,
       useNativeDriver: true,
@@ -144,7 +144,7 @@ const FloatingNavbar = ({
       setIsExpanded(false);
     });
 
-    // Call the navigation function
+  
     if (onNavigate) {
       onNavigate(routeName);
     } else {
@@ -152,7 +152,7 @@ const FloatingNavbar = ({
     }
   };
 
-  // Reset interaction state when route changes
+ 
   useEffect(() => {
     setHasInteracted(false);
     setIsVisible(true);
@@ -174,7 +174,7 @@ const FloatingNavbar = ({
         }
       ]}
     >
-      {/* Collapsed state - small circle with current screen icon */}
+    
       {!isExpanded && (
         <TouchableOpacity
           style={styles.collapsedButton}
@@ -189,7 +189,7 @@ const FloatingNavbar = ({
         </TouchableOpacity>
       )}
 
-      {/* Expanded state - full navigation bar */}
+     
       {isExpanded && (
         <Animated.View 
           style={[
@@ -215,7 +215,7 @@ const FloatingNavbar = ({
             </TouchableOpacity>
           ))}
           
-          {/* Down arrow indicator */}
+          
           <View style={styles.downArrow}>
             <Ionicons
               name="chevron-down"
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   navbarLeft: {
     left: 20,
   },
-  // Collapsed state - small circle
+ 
   collapsedButton: {
     width: 60,
     height: 60,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.white,
   },
-  // Expanded state - full navigation bar
+  
   expandedNavbar: {
     backgroundColor: COLORS.surface,
     borderRadius: 25,

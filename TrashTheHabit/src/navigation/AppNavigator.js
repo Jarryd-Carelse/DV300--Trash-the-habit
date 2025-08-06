@@ -30,7 +30,7 @@ const AppNavigator = () => {
   };
 
   if (isLoading) {
-    return null; // You could add a loading screen here
+    return null; 
   }
 
   return (

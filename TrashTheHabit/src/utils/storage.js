@@ -8,7 +8,7 @@ const STORAGE_KEYS = {
   IS_LOGGED_IN: 'is_logged_in',
 };
 
-// Save user settings
+
 export const saveUserSettings = async (settings) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(settings));
@@ -19,7 +19,7 @@ export const saveUserSettings = async (settings) => {
   }
 };
 
-// Get user settings
+
 export const getUserSettings = async () => {
   try {
     const settings = await AsyncStorage.getItem(STORAGE_KEYS.USER_SETTINGS);
@@ -30,7 +30,7 @@ export const getUserSettings = async () => {
   }
 };
 
-// Save user data
+
 export const saveUserData = async (userData) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
@@ -41,7 +41,7 @@ export const saveUserData = async (userData) => {
   }
 };
 
-// Get user data
+
 export const getUserData = async () => {
   try {
     const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
@@ -52,7 +52,7 @@ export const getUserData = async () => {
   }
 };
 
-// Save habits data
+
 export const saveHabitsData = async (habits) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.HABITS_DATA, JSON.stringify(habits));
@@ -63,7 +63,6 @@ export const saveHabitsData = async (habits) => {
   }
 };
 
-// Get habits data
 export const getHabitsData = async () => {
   try {
     const habits = await AsyncStorage.getItem(STORAGE_KEYS.HABITS_DATA);
@@ -74,7 +73,7 @@ export const getHabitsData = async () => {
   }
 };
 
-// Save progress data
+
 export const saveProgressData = async (progress) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.PROGRESS_DATA, JSON.stringify(progress));
@@ -85,7 +84,7 @@ export const saveProgressData = async (progress) => {
   }
 };
 
-// Get progress data
+
 export const getProgressData = async () => {
   try {
     const progress = await AsyncStorage.getItem(STORAGE_KEYS.PROGRESS_DATA);
@@ -96,7 +95,7 @@ export const getProgressData = async () => {
   }
 };
 
-// Set login status
+
 export const setLoginStatus = async (isLoggedIn) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, JSON.stringify(isLoggedIn));
@@ -107,7 +106,7 @@ export const setLoginStatus = async (isLoggedIn) => {
   }
 };
 
-// Get login status
+
 export const getLoginStatus = async () => {
   try {
     const status = await AsyncStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN);
@@ -118,7 +117,6 @@ export const getLoginStatus = async () => {
   }
 };
 
-// Clear all data (for logout or reset)
 export const clearAllData = async () => {
   try {
     await AsyncStorage.multiRemove([
@@ -135,7 +133,7 @@ export const clearAllData = async () => {
   }
 };
 
-// Initialize app with dummy data if no data exists
+
 export const initializeAppData = async () => {
   try {
     const settings = await getUserSettings();

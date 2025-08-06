@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 
 const DropZone = ({ 
-  type, // 'complete' or 'trash'
+  type,
   isActive = false,
   isHighlighted = false,
   style,

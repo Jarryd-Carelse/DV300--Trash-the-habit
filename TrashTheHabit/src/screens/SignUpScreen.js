@@ -50,7 +50,7 @@ const SignUpScreen = ({ navigation }) => {
 
     setLoading(true);
     
-    // Simulate API call
+   
     setTimeout(() => {
       setLoading(false);
       Alert.alert(

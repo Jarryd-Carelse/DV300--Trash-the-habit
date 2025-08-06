@@ -9,8 +9,8 @@ const CustomButton = ({
   textStyle,
   disabled = false,
   loading = false,
-  variant = 'primary', // 'primary', 'secondary', 'outline', 'danger'
-  size = 'medium', // 'small', 'medium', 'large'
+  variant = 'primary', 
+  size = 'medium', 
 }) => {
   const getButtonStyle = () => {
     const baseStyle = [styles.button, styles[size]];

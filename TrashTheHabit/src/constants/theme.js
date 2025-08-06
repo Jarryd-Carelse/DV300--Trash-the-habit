@@ -1,20 +1,20 @@
 export const COLORS = {
-  primary: '#4CAF50', // Green for success
-  accent: '#FF5252', // Red for "trash"
-  background: '#121212', // Dark background
-  surface: '#1E1E1E', // Dark surface/cards
+  primary: '#4CAF50', 
+  accent: '#FF5252', 
+  background: '#121212', 
+  surface: '#1E1E1E', 
   white: '#FFFFFF',
   black: '#000000',
   gray: '#9E9E9E',
-  lightGray: '#2A2A2A', // Darker gray for borders
+  lightGray: '#2A2A2A', 
   darkGray: '#424242',
   success: '#4CAF50',
   error: '#FF5252',
   warning: '#FF9800',
   info: '#2196F3',
-  text: '#FFFFFF', // Light text for dark theme
-  textSecondary: '#B0B0B0', // Secondary text color
-  border: '#333333', // Dark borders
+  text: '#FFFFFF', 
+  textSecondary: '#B0B0B0', 
+  border: '#333333',
 };
 
 export const SIZES = {

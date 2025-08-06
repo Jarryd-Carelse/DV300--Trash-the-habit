@@ -10,30 +10,34 @@
     "splash": {
       "image": "./assets/splash-ico.png",
       "resizeMode": "contain",
-      "backgroundColor": "#121212"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
       "splash": {
         "image": "./assets/splash-ico.png",
         "resizeMode": "contain",
-        "backgroundColor": "#121212"
+        "backgroundColor": "#000000"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#121212"
+        "backgroundColor": "#000000"
       },
       "splash": {
         "image": "./assets/splash-ico.png",
         "resizeMode": "contain",
-        "backgroundColor": "#121212"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favico.png"
-    }
+    },
+    "platforms": ["ios", "android"],
+    "assetBundlePatterns": [
+      "**/*"
+    ]
   }
 }

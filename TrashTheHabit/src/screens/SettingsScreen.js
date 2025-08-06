@@ -78,14 +78,14 @@ const SettingsScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear login status
+             
               await setLoginStatus(false);
               
-              // Navigate to login screen
+             
               navigation.replace('Login');
             } catch (error) {
               console.error('Error during logout:', error);
-              // Still navigate to login even if clearing data fails
+             
               navigation.replace('Login');
             }
           },
@@ -193,7 +193,7 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Floating Navigation Bar */}
+   
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}

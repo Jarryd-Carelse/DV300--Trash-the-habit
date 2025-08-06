@@ -223,7 +223,7 @@ const HabitScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header Section */}
+    
       <View style={styles.header}>
         <Text style={styles.welcomeText}>
           Welcome back, {user.name}!
@@ -233,7 +233,7 @@ const HabitScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      {/* Habits List Section */}
+     
       <ScrollView 
         style={styles.habitsList}
         contentContainerStyle={styles.habitsContent}
@@ -252,13 +252,12 @@ const HabitScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
-      {/* Drop Zones Section */}
+     
       <View style={styles.dropZonesContainer}>
         {renderDropZone('complete')}
         {renderDropZone('trash')}
       </View>
 
-      {/* Floating Navigation Bar */}
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
