@@ -272,6 +272,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 30,
+    zIndex: 1000,
   },
   navbarRight: {
     right: 20,
