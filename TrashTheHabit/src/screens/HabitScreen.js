@@ -33,6 +33,8 @@ const HabitScreen = ({ navigation }) => {
   const [draggedHabit, setDraggedHabit] = useState(null);
   const [dragPosition] = useState(new Animated.ValueXY());
   const [activeDropZone, setActiveDropZone] = useState(null);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const [showTrashOverlay, setShowTrashOverlay] = useState(false);
   const [user] = useState({ name: 'Jarryd' });
   const [currentRoute, setCurrentRoute] = useState('Home');
   const [settings, setSettings] = useState({
@@ -100,20 +102,64 @@ const HabitScreen = ({ navigation }) => {
           const zoneWidth = (screenWidth - 80) / 2;
           
           if (gestureState.moveX > leftZoneX && gestureState.moveX < leftZoneX + zoneWidth) {
-            setActiveDropZone('complete');
+            if (activeDropZone !== 'complete') {
+              setActiveDropZone('complete');
+              // Animate drop zone scale down
+              Animated.spring(dropZoneAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }).start();
+            }
           } else if (gestureState.moveX > rightZoneX && gestureState.moveX < rightZoneX + zoneWidth) {
-            setActiveDropZone('trash');
+            if (activeDropZone !== 'trash') {
+              setActiveDropZone('trash');
+              // Animate drop zone scale down
+              Animated.spring(dropZoneAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }).start();
+            }
           } else {
-            setActiveDropZone(null);
+            if (activeDropZone !== null) {
+              setActiveDropZone(null);
+              // Reset drop zone animation
+              Animated.spring(dropZoneAnim, {
+                toValue: 0,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }).start();
+            }
           }
         } else {
-          setActiveDropZone(null);
+          if (activeDropZone !== null) {
+            setActiveDropZone(null);
+            // Reset drop zone animation
+            Animated.spring(dropZoneAnim, {
+              toValue: 0,
+              tension: 100,
+              friction: 8,
+              useNativeDriver: true,
+            }).start();
+          }
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
         if (draggedHabit && activeDropZone) {
           handleDrop(activeDropZone, draggedHabit);
         }
+        
+        // Reset drop zone animation
+        Animated.spring(dropZoneAnim, {
+          toValue: 0,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }).start();
         
         // Animate back to original position
         Animated.spring(dragPosition, {
@@ -130,24 +176,36 @@ const HabitScreen = ({ navigation }) => {
   };
 
   const handleDrop = (zoneType, habit) => {
+    console.log('handleDrop called with:', zoneType, habit.name);
+    
     if (zoneType === 'complete') {
-      // Success animation
+      console.log('Starting success animation');
+      setShowSuccessOverlay(true);
+      
+      // Enhanced success animation with celebration
       Animated.sequence([
         Animated.timing(successAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 400,
           useNativeDriver: true,
         }),
+        Animated.delay(1200), // Keep overlay visible for 1.2 seconds
         Animated.timing(successAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 800, // Slower, more elegant fade out
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        console.log('Success animation completed');
+        setShowSuccessOverlay(false);
+      });
 
       setCompleted(prev => [...prev, { ...habit, completedAt: new Date() }]);
       setHabits(prev => prev.filter(h => h.id !== habit.id));
     } else if (zoneType === 'trash') {
+      console.log('Starting trash animation');
+      setShowTrashOverlay(true);
+      
       // Trash animation
       Animated.sequence([
         Animated.timing(trashAnim, {
@@ -155,12 +213,16 @@ const HabitScreen = ({ navigation }) => {
           duration: 300,
           useNativeDriver: true,
         }),
+        Animated.delay(800), // Keep overlay visible for 0.8 seconds
         Animated.timing(trashAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        console.log('Trash animation completed');
+        setShowTrashOverlay(false);
+      });
 
       setTrashed(prev => [...prev, { ...habit, trashedAt: new Date() }]);
       setHabits(prev => prev.filter(h => h.id !== habit.id));
@@ -214,10 +276,32 @@ const HabitScreen = ({ navigation }) => {
     const isComplete = type === 'complete';
     const isHighlighted = activeDropZone === type;
     
+    // Scale down when highlighted (smaller animation)
     const dropZoneScale = dropZoneAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [1, 1.05],
+      outputRange: [1, 0.95],
     });
+
+    // Different highlight colors for each zone type
+    const getHighlightStyle = () => {
+      if (!isHighlighted) return {};
+      
+      if (isComplete) {
+        return {
+          backgroundColor: COLORS.success + '30',
+          borderColor: COLORS.success,
+          borderWidth: 3,
+          borderStyle: 'solid',
+        };
+      } else {
+        return {
+          backgroundColor: COLORS.accent + '30',
+          borderColor: COLORS.accent,
+          borderWidth: 3,
+          borderStyle: 'solid',
+        };
+      }
+    };
 
     return (
       <Animated.View
@@ -225,7 +309,7 @@ const HabitScreen = ({ navigation }) => {
         style={[
           styles.dropZone,
           isComplete ? styles.completeZone : styles.trashZone,
-          isHighlighted && styles.highlightedDropZone,
+          getHighlightStyle(),
           {
             transform: [{ scale: isHighlighted ? dropZoneScale : 1 }]
           }
@@ -246,7 +330,10 @@ const HabitScreen = ({ navigation }) => {
           <Animated.View 
             style={[
               styles.dropIndicator,
-              { opacity: dropZoneAnim }
+              { 
+                opacity: dropZoneAnim,
+                backgroundColor: isComplete ? COLORS.success : COLORS.accent
+              }
             ]}
           >
             <Text style={styles.dropIndicatorText}>Drop here!</Text>
@@ -291,36 +378,64 @@ const HabitScreen = ({ navigation }) => {
       </View>
 
       {/* Success Animation Overlay */}
-      {successAnim > 0 && (
+      {showSuccessOverlay && (
         <Animated.View 
           style={[
             styles.animationOverlay,
             styles.successOverlay,
             {
               opacity: successAnim,
-              transform: [{ scale: successAnim }]
             }
           ]}
         >
-          <Ionicons name="checkmark-circle" size={80} color={COLORS.success} />
-          <Text style={styles.animationText}>Habit Completed!</Text>
+          <Animated.View style={[
+            styles.successContent,
+            {
+              transform: [{
+                scale: successAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.1, 1],
+                })
+              }]
+            }]
+          }>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={100} color={COLORS.white} />
+            </View>
+            <Text style={styles.animationText}>Well done! You beat a habit today!</Text>
+            <Text style={styles.successSubtext}>Keep up the amazing work!</Text>
+          </Animated.View>
         </Animated.View>
       )}
 
       {/* Trash Animation Overlay */}
-      {trashAnim > 0 && (
+      {showTrashOverlay && (
         <Animated.View 
           style={[
             styles.animationOverlay,
             styles.trashOverlay,
             {
               opacity: trashAnim,
-              transform: [{ scale: trashAnim }]
             }
           ]}
         >
-          <Ionicons name="trash" size={80} color={COLORS.accent} />
-          <Text style={styles.animationText}>Habit Trashed!</Text>
+          <Animated.View style={[
+            styles.trashContent,
+            {
+              transform: [{
+                scale: trashAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.1, 1],
+                })
+              }]
+            }]
+          }>
+            <View style={styles.trashIconContainer}>
+              <Ionicons name="trash" size={100} color={COLORS.white} />
+            </View>
+            <Text style={styles.trashText}>Habit Trashed!</Text>
+            <Text style={styles.trashSubtext}>Do better next time!</Text>
+          </Animated.View>
         </Animated.View>
       )}
 
@@ -444,16 +559,6 @@ const styles = StyleSheet.create({
   trashZone: {
     borderColor: COLORS.accent,
   },
-  highlightedDropZone: {
-    backgroundColor: COLORS.primary + '20',
-    borderColor: COLORS.primary,
-    borderWidth: 3,
-    borderStyle: 'solid',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
   dropZoneText: {
     ...FONTS.bold,
     fontSize: SIZES.large,
@@ -482,18 +587,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   successOverlay: {
-    backgroundColor: COLORS.success + '20',
+    backgroundColor: 'rgba(76, 175, 80, 0.95)',
   },
   trashOverlay: {
-    backgroundColor: COLORS.accent + '20',
+    backgroundColor: 'rgba(255, 82, 82, 0.95)',
   },
   animationText: {
     ...FONTS.bold,
-    fontSize: SIZES.large,
-    color: COLORS.text,
+    fontSize: 24,
+    color: COLORS.white,
     marginTop: SPACING.md,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  successContent: {
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  successIconContainer: {
+    backgroundColor: COLORS.success + '50',
+    borderRadius: 50,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  successSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.white,
+    textAlign: 'center',
+  },
+  trashContent: {
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  trashIconContainer: {
+    backgroundColor: COLORS.accent + '50',
+    borderRadius: 50,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  trashText: {
+    ...FONTS.bold,
+    fontSize: 24,
+    color: COLORS.white,
+    marginTop: SPACING.md,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  trashSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.white,
     textAlign: 'center',
   },
 });

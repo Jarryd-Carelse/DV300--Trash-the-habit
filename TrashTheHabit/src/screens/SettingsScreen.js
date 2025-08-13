@@ -233,8 +233,19 @@ const SettingsScreen = ({ navigation }) => {
           }
         ]}
       >
-        <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Customize your experience</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.title}>Settings</Text>
+            <Text style={styles.subtitle}>Customize your experience</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="person-circle" size={32} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
