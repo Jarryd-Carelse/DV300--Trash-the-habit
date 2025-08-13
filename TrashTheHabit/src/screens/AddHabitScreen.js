@@ -18,6 +18,7 @@ import { getHabitsData, saveHabitsData, getUserSettings } from '../utils/storage
 
 const AddHabitScreen = ({ navigation }) => {
   const [habitName, setHabitName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentRoute, setCurrentRoute] = useState('AddHabit');
@@ -28,11 +29,24 @@ const AddHabitScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
 
+  // Predefined habit categories
+  const habitCategories = [
+    'Health & Fitness',
+    'Productivity',
+    'Learning',
+    'Relationships',
+    'Finance',
+    'Mindfulness',
+    'Creativity',
+    'Other'
+  ];
+
   // Twinning animations
   const successAnim = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(1)).current;
   const deleteAnim = useRef(new Animated.Value(1)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
+  const categoryAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadHabits();
@@ -44,6 +58,12 @@ const AddHabitScreen = ({ navigation }) => {
         toValue: 1,
         tension: 50,
         friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.spring(categoryAnim, {
+        toValue: 1,
+        tension: 60,
+        friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
@@ -77,6 +97,11 @@ const AddHabitScreen = ({ navigation }) => {
   };
 
   const handleAddHabit = async () => {
+    if (!selectedCategory) {
+      Alert.alert('Error', 'Please select a category first');
+      return;
+    }
+    
     if (!habitName.trim()) {
       // Shake animation for validation error
       Animated.sequence([
@@ -107,7 +132,7 @@ const AddHabitScreen = ({ navigation }) => {
       const newHabit = {
         id: Date.now().toString(),
         name: habitName.trim(),
-        category: 'Other', 
+        category: selectedCategory,
         createdAt: new Date().toISOString(),
         completedCount: 0,
         trashedCount: 0,
@@ -119,6 +144,7 @@ const AddHabitScreen = ({ navigation }) => {
       await saveHabitsData(updatedHabits);
 
       setHabitName('');
+      setSelectedCategory('');
       
       // Success animation
       Animated.sequence([
@@ -217,8 +243,8 @@ const AddHabitScreen = ({ navigation }) => {
           })}] }
         ]}
       >
-        <Text style={styles.title}>Add New Habit</Text>
-        <Text style={styles.subtitle}>What would you like to change?</Text>
+        <Text style={styles.title}>Build New Habits</Text>
+        <Text style={styles.subtitle}>Choose a category and start your journey</Text>
       </Animated.View>
 
       <ScrollView 
@@ -232,30 +258,59 @@ const AddHabitScreen = ({ navigation }) => {
             { transform: [{ scale: formAnim }] }
           ]}
         >
-          {/* Progress Indicator */}
-          <View style={styles.progressSection}>
-            <Text style={styles.progressTitle}>Your Habit Journey</Text>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${Math.min((habits.length / 5) * 100, 100)}%` }]} />
+          {/* Category Selection */}
+          <Animated.View 
+            style={[
+              styles.categorySection,
+              { 
+                opacity: categoryAnim,
+                transform: [{ 
+                  translateY: categoryAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0],
+                  })
+                }] 
+              }
+            ]}
+          >
+            <Text style={styles.categoryTitle}>Choose a Category</Text>
+            <View style={styles.categoryGrid}>
+              {habitCategories.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === category && styles.selectedCategoryButton
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.categoryButtonText,
+                    selectedCategory === category && styles.selectedCategoryButtonText
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            <Text style={styles.progressText}>
-              {habits.length} of 5 habits • {habits.length >= 5 ? 'Amazing progress!' : 'Keep building!'}
-            </Text>
-          </View>
+          </Animated.View>
 
           <CustomInput
             label="Habit Name"
-            placeholder="Enter your habit..."
+            placeholder={selectedCategory ? `Enter your ${selectedCategory.toLowerCase()} habit...` : "Select a category first..."}
             value={habitName}
             onChangeText={setHabitName}
             style={styles.input}
+            editable={!!selectedCategory}
           />
           
           <CustomButton
-            title="Add Habit"
+            title={selectedCategory ? "Add Habit" : "Select Category First"}
             onPress={handleAddHabit}
             loading={loading}
-            style={styles.addButton}
+            style={[styles.addButton, !selectedCategory && styles.disabledButton]}
+            disabled={!selectedCategory}
           />
         </Animated.View>
 
@@ -403,36 +458,68 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: SPACING.sm,
   },
-  progressSection: {
-    marginBottom: SPACING.xxl,
-    alignItems: 'center',
+  categorySection: {
+    marginBottom: SPACING.lg,
     paddingVertical: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
   },
-  progressTitle: {
+  categoryTitle: {
     ...FONTS.bold,
-    fontSize: SIZES.extraLarge,
+    fontSize: SIZES.large,
     color: COLORS.text,
     marginBottom: SPACING.lg,
     textAlign: 'center',
   },
-  progressBar: {
-    width: '80%',
-    height: 12,
-    backgroundColor: COLORS.border,
-    borderRadius: 6,
-    overflow: 'hidden',
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  categoryButton: {
+    width: '48%',
+    backgroundColor: COLORS.background,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 60,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  progressFill: {
-    height: '100%',
+  selectedCategoryButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 6,
+    borderColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  progressText: {
-    ...FONTS.regular,
-    fontSize: SIZES.font,
-    color: COLORS.textSecondary,
+  categoryButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.text,
     textAlign: 'center',
+    lineHeight: 18,
+  },
+  selectedCategoryButtonText: {
+    color: COLORS.white,
+    ...FONTS.bold,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   successOverlay: {
     position: 'absolute',
