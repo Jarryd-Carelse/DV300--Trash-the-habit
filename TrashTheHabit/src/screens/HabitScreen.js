@@ -238,7 +238,7 @@ const HabitScreen = ({ navigation }) => {
       >
         {habits.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No habits left. You crushed it! 💪</Text>
+            <Text style={styles.emptyText}>No habits left. You crushed it!</Text>
             <Text style={styles.emptySubtext}>
               Completed: {completed.length} | Trashed: {trashed.length}
             </Text>
