@@ -7,6 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
@@ -14,6 +15,8 @@ import { getProgressData, getUserSettings, getHabitsData } from '../utils/storag
 import { dummyProgress } from '../utils/dummyData';
 
 const ProgressScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  
   const [progress, setProgress] = useState(null);
   const [currentRoute, setCurrentRoute] = useState('Progress');
   const [settings, setSettings] = useState({
@@ -202,7 +205,7 @@ const ProgressScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <Animated.View 
         style={[
           styles.header,
@@ -216,7 +219,11 @@ const ProgressScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>Track your habit-breaking success</Text>
       </Animated.View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.statsGrid}>
           <StatCard
             title="Completed This Week"
@@ -306,6 +313,7 @@ const ProgressScreen = ({ navigation }) => {
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
         position={settings.navbarPosition}
+        style={{ marginBottom: insets.bottom }}
       />
     </SafeAreaView>
   );
@@ -482,6 +490,9 @@ const styles = StyleSheet.create({
   progressBar: {
     height: '100%',
     borderRadius: 5,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Adjust as needed for the FloatingNavbar
   },
 });
 

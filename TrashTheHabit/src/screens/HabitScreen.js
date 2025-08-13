@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,17 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { getUserSettings } from '../utils/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const HabitScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  
   // Use dummy data as specified in requirements
   const [habits, setHabits] = useState([
     { id: 1, name: 'Vaping' },
@@ -48,9 +51,18 @@ const HabitScreen = ({ navigation }) => {
   const successAnim = useRef(new Animated.Value(0)).current;
   const trashAnim = useRef(new Animated.Value(0)).current;
   const dropZoneAnim = useRef(new Animated.Value(0)).current;
+  const panResponderRef = useRef(null);
 
   useEffect(() => {
     loadSettings();
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      // Reset all animations when component unmounts
+      successAnim.setValue(0);
+      trashAnim.setValue(0);
+      dropZoneAnim.setValue(0);
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -69,7 +81,7 @@ const HabitScreen = ({ navigation }) => {
     navigation.navigate(routeName);
   };
 
-  const createPanResponder = (habit) => {
+  const createPanResponder = useCallback((habit) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
@@ -77,26 +89,22 @@ const HabitScreen = ({ navigation }) => {
         setDraggedHabit(habit);
         setActiveDropZone(null);
         
-        // Set the initial offset to the current position
         dragPosition.setOffset({
           x: dragPosition.x._value,
           y: dragPosition.y._value,
         });
         
-        // Reset the value to 0 so we can track the delta
         dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
-        // Update position with the gesture delta
         dragPosition.setValue({ 
           x: gestureState.dx, 
           y: gestureState.dy 
         });
         
-        // Drop zone detection - allow card to overlap zones
         const dropZoneY = screenHeight - 200;
         
-        if (gestureState.moveY > dropZoneY - 50) { // Allow earlier detection
+        if (gestureState.moveY > dropZoneY - 50) {
           const leftZoneX = 20;
           const rightZoneX = screenWidth / 2 + 20;
           const zoneWidth = (screenWidth - 80) / 2;
@@ -104,7 +112,6 @@ const HabitScreen = ({ navigation }) => {
           if (gestureState.moveX > leftZoneX && gestureState.moveX < leftZoneX + zoneWidth) {
             if (activeDropZone !== 'complete') {
               setActiveDropZone('complete');
-              // Animate drop zone scale down
               Animated.spring(dropZoneAnim, {
                 toValue: 1,
                 tension: 100,
@@ -115,7 +122,6 @@ const HabitScreen = ({ navigation }) => {
           } else if (gestureState.moveX > rightZoneX && gestureState.moveX < rightZoneX + zoneWidth) {
             if (activeDropZone !== 'trash') {
               setActiveDropZone('trash');
-              // Animate drop zone scale down
               Animated.spring(dropZoneAnim, {
                 toValue: 1,
                 tension: 100,
@@ -126,7 +132,6 @@ const HabitScreen = ({ navigation }) => {
           } else {
             if (activeDropZone !== null) {
               setActiveDropZone(null);
-              // Reset drop zone animation
               Animated.spring(dropZoneAnim, {
                 toValue: 0,
                 tension: 100,
@@ -138,7 +143,6 @@ const HabitScreen = ({ navigation }) => {
         } else {
           if (activeDropZone !== null) {
             setActiveDropZone(null);
-            // Reset drop zone animation
             Animated.spring(dropZoneAnim, {
               toValue: 0,
               tension: 100,
@@ -153,7 +157,6 @@ const HabitScreen = ({ navigation }) => {
           handleDrop(activeDropZone, draggedHabit);
         }
         
-        // Reset drop zone animation
         Animated.spring(dropZoneAnim, {
           toValue: 0,
           tension: 100,
@@ -161,7 +164,6 @@ const HabitScreen = ({ navigation }) => {
           useNativeDriver: true,
         }).start();
         
-        // Animate back to original position
         Animated.spring(dragPosition, {
           toValue: { x: 0, y: 0 },
           tension: 100,
@@ -170,12 +172,13 @@ const HabitScreen = ({ navigation }) => {
         }).start(() => {
           setDraggedHabit(null);
           setActiveDropZone(null);
+          dragPosition.setValue({ x: 0, y: 0 });
         });
       },
     });
-  };
+  }, [activeDropZone, handleDrop]);
 
-  const handleDrop = (zoneType, habit) => {
+  const handleDrop = useCallback((zoneType, habit) => {
     console.log('handleDrop called with:', zoneType, habit.name);
     
     if (zoneType === 'complete') {
@@ -183,21 +186,23 @@ const HabitScreen = ({ navigation }) => {
       setShowSuccessOverlay(true);
       
       // Enhanced success animation with celebration
-      Animated.sequence([
+      const successSequence = Animated.sequence([
         Animated.timing(successAnim, {
           toValue: 1,
           duration: 400,
           useNativeDriver: true,
         }),
-        Animated.delay(1200), // Keep overlay visible for 1.2 seconds
+        Animated.delay(1200),
         Animated.timing(successAnim, {
           toValue: 0,
-          duration: 800, // Slower, more elegant fade out
+          duration: 800,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        console.log('Success animation completed');
+      ]);
+      
+      successSequence.start(() => {
         setShowSuccessOverlay(false);
+        successAnim.setValue(0);
       });
 
       setCompleted(prev => [...prev, { ...habit, completedAt: new Date() }]);
@@ -207,30 +212,37 @@ const HabitScreen = ({ navigation }) => {
       setShowTrashOverlay(true);
       
       // Trash animation
-      Animated.sequence([
+      const trashSequence = Animated.sequence([
         Animated.timing(trashAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.delay(800), // Keep overlay visible for 0.8 seconds
+        Animated.delay(800),
         Animated.timing(trashAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        console.log('Trash animation completed');
+      ]);
+      
+      trashSequence.start(() => {
         setShowTrashOverlay(false);
+        trashAnim.setValue(0);
       });
 
       setTrashed(prev => [...prev, { ...habit, trashedAt: new Date() }]);
       setHabits(prev => prev.filter(h => h.id !== habit.id));
     }
-  };
+  }, [successAnim, trashAnim]);
 
-  const renderHabitCard = (habit) => {
+  const renderHabitCard = useCallback((habit) => {
     const isDragging = draggedHabit?.id === habit.id;
+    
+    // Create pan responder only once per habit
+    if (!panResponderRef.current) {
+      panResponderRef.current = createPanResponder(habit);
+    }
     
     return (
       <Animated.View
@@ -257,7 +269,7 @@ const HabitScreen = ({ navigation }) => {
             elevation: 10,
           }
         ]}
-        {...createPanResponder(habit).panHandlers}
+        {...panResponderRef.current.panHandlers}
       >
         <View style={styles.cardContent}>
           <View style={styles.dragHandle}>
@@ -270,7 +282,7 @@ const HabitScreen = ({ navigation }) => {
         </View>
       </Animated.View>
     );
-  };
+  }, [draggedHabit, dragPosition, createPanResponder]);
 
   const renderDropZone = (type) => {
     const isComplete = type === 'complete';
@@ -344,7 +356,7 @@ const HabitScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.welcomeText}>
           Welcome back, {user.name}!
@@ -356,7 +368,7 @@ const HabitScreen = ({ navigation }) => {
 
       <ScrollView 
         style={styles.habitsList}
-        contentContainerStyle={styles.habitsContent}
+        contentContainerStyle={[styles.habitsContent, { paddingBottom: 200 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={!draggedHabit}
       >
@@ -372,7 +384,7 @@ const HabitScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
-      <View style={styles.dropZonesContainer}>
+      <View style={[styles.dropZonesContainer, { paddingBottom: SPACING.lg + insets.bottom }]}>
         {renderDropZone('complete')}
         {renderDropZone('trash')}
       </View>
@@ -475,7 +487,7 @@ const styles = StyleSheet.create({
   },
   habitsContent: {
     padding: SPACING.lg,
-    paddingBottom: 200, // Account for drop zones
+    paddingBottom: 200, // Account for drop zones + system bar
   },
   habitCard: {
     backgroundColor: COLORS.surface,
@@ -483,10 +495,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...SHADOWS.medium,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   draggingCard: {
-    ...SHADOWS.dark,
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -539,6 +555,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
+    paddingBottom: SPACING.lg,
   },
   dropZone: {
     flex: 1,
@@ -551,7 +568,11 @@ const styles = StyleSheet.create({
     minHeight: 120,
     borderWidth: 2,
     borderStyle: 'dashed',
-    ...SHADOWS.medium,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6.27,
+    elevation: 8,
   },
   completeZone: {
     borderColor: COLORS.success,
