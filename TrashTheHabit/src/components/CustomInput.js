@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 
@@ -26,30 +26,127 @@ const CustomInput = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasValue, setHasValue] = useState(false);
+  
+  const focusAnim = useRef(new Animated.Value(0)).current;
+  const labelAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    setHasValue(value && value.length > 0);
+  }, [value]);
+
+  useEffect(() => {
+    if (error) {
+      Animated.sequence([
+        Animated.timing(shakeAnim, {
+          toValue: 10,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: -10,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: 10,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [error]);
 
   const handleFocus = () => {
     setIsFocused(true);
     onFocus && onFocus();
+    
+    Animated.parallel([
+      Animated.timing(focusAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+      Animated.timing(labelAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+    ]).start();
   };
 
   const handleBlur = () => {
     setIsFocused(false);
     onBlur && onBlur();
+    
+    if (!hasValue) {
+      Animated.parallel([
+        Animated.timing(focusAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+        Animated.timing(labelAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    }
   };
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
+  const borderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.border, COLORS.primary],
+  });
+
+  const labelScale = labelAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.85],
+  });
+
+  const labelTranslateY = labelAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -8],
+  });
+
   return (
     <View style={[styles.container, style]}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[
-        styles.inputContainer,
-        isFocused && styles.inputContainerFocused,
-        error && styles.inputContainerError,
-        !editable && styles.inputContainerDisabled
-      ]}>
+      <Animated.Text 
+        style={[
+          styles.label,
+          {
+            transform: [
+              { scale: labelScale },
+              { translateY: labelTranslateY }
+            ],
+            color: isFocused ? COLORS.primary : COLORS.text,
+          }
+        ]}
+      >
+        {label}
+      </Animated.Text>
+      <Animated.View 
+        style={[
+          styles.inputContainer,
+          {
+            borderColor: error ? COLORS.error : borderColor,
+            borderWidth: error || isFocused ? 2 : 1,
+            transform: [{ translateX: shakeAnim }],
+          },
+          !editable && styles.inputContainerDisabled
+        ]}
+      >
         <TextInput
           style={[
             styles.input,
@@ -77,16 +174,26 @@ const CustomInput = ({
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={togglePasswordVisibility}
+            activeOpacity={0.7}
           >
             <Ionicons
               name={showPassword ? 'eye-off' : 'eye'}
               size={20}
-              color={COLORS.textSecondary}
+              color={isFocused ? COLORS.primary : COLORS.textSecondary}
             />
           </TouchableOpacity>
         )}
-      </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      </Animated.View>
+      {error && (
+        <Animated.Text 
+          style={[
+            styles.errorText,
+            { opacity: error ? 1 : 0 }
+          ]}
+        >
+          {error}
+        </Animated.Text>
+      )}
     </View>
   );
 };

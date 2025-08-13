@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
@@ -26,6 +27,11 @@ const AddHabitScreen = ({ navigation }) => {
     hapticsEnabled: true,
     notificationsEnabled: true,
   });
+
+  // Twinning animations
+  const successAnim = useRef(new Animated.Value(0)).current;
+  const formAnim = useRef(new Animated.Value(1)).current;
+  const deleteAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     loadHabits();
@@ -61,6 +67,25 @@ const AddHabitScreen = ({ navigation }) => {
 
   const handleAddHabit = async () => {
     if (!habitName.trim()) {
+      // Shake animation for validation error
+      Animated.sequence([
+        Animated.timing(formAnim, {
+          toValue: 0.95,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formAnim, {
+          toValue: 1.05,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
       Alert.alert('Error', 'Please enter a habit name');
       return;
     }
@@ -83,6 +108,21 @@ const AddHabitScreen = ({ navigation }) => {
       await saveHabitsData(updatedHabits);
 
       setHabitName('');
+      
+      // Success animation
+      Animated.sequence([
+        Animated.timing(successAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(successAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
       Alert.alert('Success', 'Habit added successfully!');
     } catch (error) {
       console.error('Error adding habit:', error);
@@ -98,16 +138,59 @@ const AddHabitScreen = ({ navigation }) => {
       'Are you sure you want to delete this habit?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
+        { 
+          text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
-            const updatedHabits = habits.filter(h => h.id !== habitId);
-            setHabits(updatedHabits);
-            await saveHabitsData(updatedHabits);
-          },
+            try {
+              const updatedHabits = habits.filter(h => h.id !== habitId);
+              setHabits(updatedHabits);
+              await saveHabitsData(updatedHabits);
+              
+              // Delete animation
+              Animated.sequence([
+                Animated.timing(deleteAnim, {
+                  toValue: 0.8,
+                  duration: 200,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(deleteAnim, {
+                  toValue: 1,
+                  duration: 200,
+                  useNativeDriver: true,
+                }),
+              ]).start();
+            } catch (error) {
+              console.error('Error deleting habit:', error);
+              Alert.alert('Error', 'Failed to delete habit');
+            }
+          }
         },
       ]
+    );
+  };
+
+  const renderHabitItem = (habit) => {
+    return (
+      <Animated.View
+        key={habit.id}
+        style={[
+          styles.habitItem,
+          { transform: [{ scale: deleteAnim }] }
+        ]}
+      >
+        <View style={styles.habitInfo}>
+          <Text style={styles.habitName}>{habit.name}</Text>
+          <Text style={styles.habitCategory}>{habit.category}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteHabit(habit.id)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash" size={20} color={COLORS.accent} />
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
@@ -115,52 +198,40 @@ const AddHabitScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Add New Habit</Text>
-        <Text style={styles.subtitle}>What habit do you want to break?</Text>
+        <Text style={styles.subtitle}>Create a new habit to track</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.inputSection}>
+        <Animated.View 
+          style={[
+            styles.formContainer,
+            { transform: [{ scale: formAnim }] }
+          ]}
+        >
           <CustomInput
             label="Habit Name"
-            placeholder="e.g., Check social media first thing"
+            placeholder="Enter habit name..."
             value={habitName}
             onChangeText={setHabitName}
-            autoCapitalize="words"
+            style={styles.input}
           />
-
+          
           <CustomButton
             title="Add Habit"
             onPress={handleAddHabit}
             loading={loading}
-            disabled={!habitName.trim()}
             style={styles.addButton}
           />
-        </View>
+        </Animated.View>
 
-        <View style={styles.currentHabitsSection}>
-          <Text style={styles.sectionTitle}>Current Habits</Text>
-          {habits.length === 0 ? (
-            <Text style={styles.emptyText}>No habits yet. Add your first one above!</Text>
-          ) : (
-            habits.map((habit) => (
-              <View key={habit.id} style={styles.habitItem}>
-                <View style={styles.habitInfo}>
-                  <Text style={styles.habitName}>{habit.name}</Text>
-                  <Text style={styles.habitCategory}>{habit.category}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteHabit(habit.id)}
-                >
-                  <Ionicons name="trash" size={20} color={COLORS.accent} />
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
-        </View>
+        {habits.length > 0 && (
+          <View style={styles.habitsList}>
+            <Text style={styles.sectionTitle}>Your Habits</Text>
+            {habits.map(renderHabitItem)}
+          </View>
+        )}
       </ScrollView>
 
-    
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
@@ -241,6 +312,15 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: SPACING.sm,
+  },
+  formContainer: {
+    marginBottom: SPACING.xl,
+  },
+  input: {
+    marginBottom: SPACING.md,
+  },
+  habitsList: {
+    marginTop: SPACING.md,
   },
 });
 

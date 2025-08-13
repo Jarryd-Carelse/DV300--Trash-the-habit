@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getProgressData, getUserSettings } from '../utils/storage';
+import { getProgressData, getUserSettings, getHabitsData } from '../utils/storage';
+import { dummyProgress } from '../utils/dummyData';
 
 const ProgressScreen = ({ navigation }) => {
   const [progress, setProgress] = useState(null);
@@ -20,20 +22,57 @@ const ProgressScreen = ({ navigation }) => {
     hapticsEnabled: true,
     notificationsEnabled: true,
   });
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  // Twinning animations
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadProgress();
     loadSettings();
+    
+    // Start entrance animations immediately
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
+
+  useEffect(() => {
+    if (progress) {
+      // Animate progress bars
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [progress]);
 
   const loadProgress = async () => {
     try {
       const progressData = await getProgressData();
       if (progressData) {
         setProgress(progressData);
+      } else {
+        // Use dummy data if no progress data exists
+        setProgress(dummyProgress);
       }
     } catch (error) {
       console.error('Error loading progress:', error);
+      // Fallback to dummy data
+      setProgress(dummyProgress);
     }
   };
 
@@ -53,22 +92,106 @@ const ProgressScreen = ({ navigation }) => {
     navigation.navigate(routeName);
   };
 
-  const StatCard = ({ title, value, icon, color }) => (
-    <View style={styles.statCard}>
-      <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
+  const StatCard = ({ title, value, icon, color, index }) => {
+    const cardAnim = useRef(new Animated.Value(0)).current;
+    const iconAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      // Staggered animation for stat cards
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.spring(cardAnim, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+          Animated.timing(iconAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, index * 200);
+    }, []);
+
+    const iconScale = iconAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.5, 1],
+    });
+
+    return (
+      <Animated.View 
+        style={[
+          styles.statCard,
+          {
+            opacity: cardAnim,
+            transform: [
+              { scale: cardAnim },
+              { translateY: cardAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0],
+              })}
+            ]
+          }
+        ]}
+      >
+        <Animated.View 
+          style={[
+            styles.iconContainer, 
+            { 
+              backgroundColor: color + '20',
+              transform: [{ scale: iconScale }]
+            }
+          ]}
+        >
+          <Ionicons name={icon} size={24} color={color} />
+        </Animated.View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statTitle}>{title}</Text>
+      </Animated.View>
+    );
+  };
+
+  const ProgressBar = ({ value, maxValue, color, label }) => {
+    const progressWidth = progressAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, Math.min((value / maxValue) * 100, 100)],
+    });
+
+    return (
+      <View style={styles.progressItem}>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressLabel}>{label}</Text>
+          <Text style={styles.progressValue}>{value}/{maxValue}</Text>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <Animated.View 
+            style={[
+              styles.progressBar,
+              { 
+                width: progressWidth + '%',
+                backgroundColor: color 
+              }
+            ]} 
+          />
+        </View>
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-    </View>
-  );
+    );
+  };
 
   if (!progress) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.loadingText}>Loading progress...</Text>
+        <Animated.Text 
+          style={[
+            styles.loadingText,
+            { opacity: fadeAnim }
+          ]}
+        >
+          Loading progress...
+        </Animated.Text>
         
-    
         <FloatingNavbar
           currentRoute={currentRoute}
           onNavigate={handleNavigation}
@@ -80,76 +203,105 @@ const ProgressScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Your Progress</Text>
-        <Text style={styles.subtitle}>Track your habit-breaking journey</Text>
-      </View>
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }]
+          }
+        ]}
+      >
+        <Text style={styles.title}>Progress Dashboard</Text>
+        <Text style={styles.subtitle}>Track your habit-breaking success</Text>
+      </Animated.View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statsGrid}>
           <StatCard
             title="Completed This Week"
-            value={progress.completedThisWeek}
+            value={progress.completedThisWeek || 0}
             icon="checkmark-circle"
             color={COLORS.success}
+            index={0}
           />
           <StatCard
             title="Trashed This Week"
-            value={progress.trashedThisWeek}
+            value={progress.trashedThisWeek || 0}
             icon="trash"
             color={COLORS.accent}
-          />
-          <StatCard
-            title="Longest Streak"
-            value={progress.longestStreak}
-            icon="flame"
-            color={COLORS.warning}
+            index={1}
           />
           <StatCard
             title="Current Streak"
-            value={progress.currentStreak}
-            icon="trending-up"
+            value={progress.currentStreak || 0}
+            icon="flame"
+            color={COLORS.warning}
+            index={2}
+          />
+          <StatCard
+            title="Total Habits"
+            value={progress.totalHabits || 0}
+            icon="list"
             color={COLORS.primary}
+            index={3}
           />
         </View>
 
-        <View style={styles.chartSection}>
-          <Text style={styles.sectionTitle}>Weekly Activity</Text>
-          <View style={styles.chartContainer}>
-            {progress.weeklyData.map((day, index) => (
-              <View key={index} style={styles.chartBar}>
-                <View style={styles.barContainer}>
-                  <View 
-                    style={[
-                      styles.completedBar, 
-                      { height: day.completed * 10 }
-                    ]} 
-                  />
-                  <View 
-                    style={[
-                      styles.trashedBar, 
-                      { height: day.trashed * 10 }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.dayLabel}>{day.day}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: COLORS.success }]} />
-              <Text style={styles.legendText}>Completed</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: COLORS.accent }]} />
-              <Text style={styles.legendText}>Trashed</Text>
-            </View>
-          </View>
+        <View style={styles.progressSection}>
+          <Text style={styles.sectionTitle}>Weekly Progress</Text>
+          <ProgressBar
+            label="Completed"
+            value={progress.completedThisWeek || 0}
+            maxValue={progress.totalHabits || 1}
+            color={COLORS.success}
+          />
+          <ProgressBar
+            label="Trashed"
+            value={progress.trashedThisWeek || 0}
+            maxValue={progress.totalHabits || 1}
+            color={COLORS.accent}
+          />
         </View>
+
+        {progress.weeklyData && progress.weeklyData.length > 0 && (
+          <View style={styles.chartSection}>
+            <Text style={styles.sectionTitle}>Weekly Activity</Text>
+            <View style={styles.chartContainer}>
+              {progress.weeklyData.map((day, index) => (
+                <View key={index} style={styles.chartBar}>
+                  <View style={styles.barContainer}>
+                    <View 
+                      style={[
+                        styles.completedBar, 
+                        { height: day.completed * 10 }
+                      ]} 
+                    />
+                    <View 
+                      style={[
+                        styles.trashedBar, 
+                        { height: day.trashed * 10 }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.dayLabel}>{day.day}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.legend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: COLORS.success }]} />
+                <Text style={styles.legendText}>Completed</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: COLORS.accent }]} />
+                <Text style={styles.legendText}>Trashed</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-     
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
@@ -234,6 +386,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    marginTop: SPACING.xl,
   },
   sectionTitle: {
     ...FONTS.bold,
@@ -293,6 +446,42 @@ const styles = StyleSheet.create({
     ...FONTS.regular,
     fontSize: SIZES.small,
     color: COLORS.textSecondary,
+  },
+  progressSection: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: SPACING.lg,
+  },
+  progressItem: {
+    marginBottom: SPACING.md,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  progressLabel: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.textSecondary,
+  },
+  progressValue: {
+    ...FONTS.bold,
+    fontSize: SIZES.small,
+    color: COLORS.text,
+  },
+  progressBarContainer: {
+    height: 10,
+    backgroundColor: COLORS.border,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 5,
   },
 });
 

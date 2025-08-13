@@ -1,5 +1,5 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 
 const CustomButton = ({
@@ -12,6 +12,51 @@ const CustomButton = ({
   variant = 'primary', 
   size = 'medium', 
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  const animatePress = () => {
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const animateRelease = () => {
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handlePressIn = () => {
+    if (!disabled && !loading) {
+      animatePress();
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!disabled && !loading) {
+      animateRelease();
+    }
+  };
+
   const getButtonStyle = () => {
     const baseStyle = [styles.button, styles[size]];
     
@@ -58,21 +103,25 @@ const CustomButton = ({
   };
 
   return (
-    <TouchableOpacity
-      style={[getButtonStyle(), style]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
-    >
-      {loading ? (
-        <ActivityIndicator 
-          color={variant === 'outline' ? COLORS.primary : COLORS.white} 
-          size="small" 
-        />
-      ) : (
-        <Text style={[getTextStyle(), textStyle]}>{title}</Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim }}>
+      <TouchableOpacity
+        style={[getButtonStyle(), style]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        activeOpacity={1}
+      >
+        {loading ? (
+          <ActivityIndicator 
+            color={variant === 'outline' ? COLORS.primary : COLORS.white} 
+            size="small" 
+          />
+        ) : (
+          <Text style={[getTextStyle(), textStyle]}>{title}</Text>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
