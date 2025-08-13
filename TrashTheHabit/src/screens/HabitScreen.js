@@ -21,11 +21,11 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const HabitScreen = ({ navigation }) => {
   // Use dummy data as specified in requirements
   const [habits, setHabits] = useState([
-    { id: 1, name: 'Vaping', emoji: '💨' },
-    { id: 2, name: 'Overeating', emoji: '🍕' },
-    { id: 3, name: 'Doomscrolling', emoji: '📱' },
-    { id: 4, name: 'Procrastinating', emoji: '⏰' },
-    { id: 5, name: 'Sleeping Late', emoji: '😴' },
+    { id: 1, name: 'Vaping' },
+    { id: 2, name: 'Overeating' },
+    { id: 3, name: 'Doomscrolling' },
+    { id: 4, name: 'Procrastinating' },
+    { id: 5, name: 'Sleeping Late' },
   ]);
   
   const [completed, setCompleted] = useState([]);
@@ -178,10 +178,6 @@ const HabitScreen = ({ navigation }) => {
           <View style={styles.habitInfo}>
             <Text style={styles.habitName}>{habit.name}</Text>
           </View>
-          
-          <View style={styles.emojiContainer}>
-            <Text style={styles.emoji}>{habit.emoji}</Text>
-          </View>
         </View>
       </Animated.View>
     );
@@ -330,12 +326,6 @@ const styles = StyleSheet.create({
     ...FONTS.bold,
     fontSize: SIZES.large,
     color: COLORS.text,
-  },
-  emojiContainer: {
-    marginLeft: SPACING.md,
-  },
-  emoji: {
-    fontSize: 24,
   },
   emptyState: {
     flex: 1,
