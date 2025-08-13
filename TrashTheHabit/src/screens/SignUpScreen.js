@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
@@ -81,6 +82,11 @@ const SignUpScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
+            <Image 
+              source={require('../../assets/TTH.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Join Trash the Habit today</Text>
           </View>
@@ -154,6 +160,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: SPACING.xxl,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: SPACING.sm,
   },
   title: {
     ...FONTS.bold,
