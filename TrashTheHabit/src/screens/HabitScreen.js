@@ -296,23 +296,22 @@ const HabitScreen = ({ navigation }) => {
 
     // Different highlight colors for each zone type
     const getHighlightStyle = () => {
-      if (!isHighlighted) return {};
-      
-      if (isComplete) {
-        return {
-          backgroundColor: COLORS.success + '30',
-          borderColor: COLORS.success,
-          borderWidth: 3,
-          borderStyle: 'solid',
-        };
-      } else {
-        return {
-          backgroundColor: COLORS.accent + '30',
-          borderColor: COLORS.accent,
-          borderWidth: 3,
-          borderStyle: 'solid',
-        };
+      if (activeDropZone === type) {
+        if (isComplete) {
+          return {
+            borderColor: COLORS.success,
+            borderWidth: 3,
+            borderStyle: 'solid',
+          };
+        } else {
+          return {
+            borderColor: COLORS.accent,
+            borderWidth: 3,
+            borderStyle: 'solid',
+          };
+        }
       }
+      return {};
     };
 
     return (

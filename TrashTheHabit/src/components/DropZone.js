@@ -90,8 +90,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   highlightedContainer: {
-    backgroundColor: COLORS.primary + '20',
-    borderColor: COLORS.primary,
     borderWidth: 3,
   },
   text: {
