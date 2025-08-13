@@ -6,6 +6,7 @@ import ProgressScreen from '../screens/ProgressScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { getLoginStatus } from '../utils/storage';
 
 const Stack = createStackNavigator();
@@ -46,6 +47,7 @@ const AppNavigator = () => {
       <Stack.Screen name="AddHabit" component={AddHabitScreen} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 };

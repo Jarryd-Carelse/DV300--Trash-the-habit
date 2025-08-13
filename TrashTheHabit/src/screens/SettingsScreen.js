@@ -121,8 +121,18 @@ const SettingsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Customize your experience</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.title}>Settings</Text>
+            <Text style={styles.subtitle}>Customize your experience</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.profileButton} 
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Ionicons name="person-circle" size={32} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -214,6 +224,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flex: 1,
+  },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
@@ -224,6 +242,9 @@ const styles = StyleSheet.create({
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+  },
+  profileButton: {
+    padding: SPACING.sm,
   },
   content: {
     flex: 1,

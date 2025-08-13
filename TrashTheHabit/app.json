@@ -7,6 +7,15 @@
     "icon": "./assets/TTH.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "This app accesses your photos to let you choose profile pictures.",
+          "cameraPermission": "This app uses the camera to let you take profile pictures."
+        }
+      ]
+    ],
     "splash": {
       "image": "./assets/splash-ico.png",
       "resizeMode": "contain",
@@ -14,6 +23,11 @@
     },
     "ios": {
       "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photos to let you choose profile pictures.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs access to save profile pictures."
+      },
       "splash": {
         "image": "./assets/splash-ico.png",
         "resizeMode": "contain",
@@ -25,6 +39,12 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
       "splash": {
         "image": "./assets/splash-ico.png",
         "resizeMode": "contain",
