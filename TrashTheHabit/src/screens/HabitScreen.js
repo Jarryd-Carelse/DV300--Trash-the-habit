@@ -51,7 +51,6 @@ const HabitScreen = ({ navigation }) => {
   const successAnim = useRef(new Animated.Value(0)).current;
   const trashAnim = useRef(new Animated.Value(0)).current;
   const dropZoneAnim = useRef(new Animated.Value(0)).current;
-  const panResponderRef = useRef(null);
 
   useEffect(() => {
     loadSettings();
@@ -89,27 +88,26 @@ const HabitScreen = ({ navigation }) => {
         setDraggedHabit(habit);
         setActiveDropZone(null);
         
-        dragPosition.setOffset({
-          x: dragPosition.x._value,
-          y: dragPosition.y._value,
-        });
-        
+        // Reset drag position
         dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
+        // Update drag position
         dragPosition.setValue({ 
           x: gestureState.dx, 
           y: gestureState.dy 
         });
         
-        const dropZoneY = screenHeight - 200;
+        // Calculate drop zone positions more accurately
+        const dropZoneY = screenHeight - 200; // Bottom area where drop zones are
+        const leftZoneX = 20;
+        const rightZoneX = screenWidth / 2 + 20;
+        const zoneWidth = (screenWidth - 80) / 2;
         
-        if (gestureState.moveY > dropZoneY - 50) {
-          const leftZoneX = 20;
-          const rightZoneX = screenWidth / 2 + 20;
-          const zoneWidth = (screenWidth - 80) / 2;
-          
-          if (gestureState.moveX > leftZoneX && gestureState.moveX < leftZoneX + zoneWidth) {
+        // Check if gesture is in the drop zone area (make it more responsive)
+        if (gestureState.moveY > dropZoneY - 100) { // Increased detection area
+          // Check if in complete zone (left side)
+          if (gestureState.moveX > leftZoneX - 20 && gestureState.moveX < leftZoneX + zoneWidth + 20) {
             if (activeDropZone !== 'complete') {
               setActiveDropZone('complete');
               Animated.spring(dropZoneAnim, {
@@ -119,7 +117,9 @@ const HabitScreen = ({ navigation }) => {
                 useNativeDriver: true,
               }).start();
             }
-          } else if (gestureState.moveX > rightZoneX && gestureState.moveX < rightZoneX + zoneWidth) {
+          } 
+          // Check if in trash zone (right side)
+          else if (gestureState.moveX > rightZoneX - 20 && gestureState.moveX < rightZoneX + zoneWidth + 20) {
             if (activeDropZone !== 'trash') {
               setActiveDropZone('trash');
               Animated.spring(dropZoneAnim, {
@@ -129,7 +129,9 @@ const HabitScreen = ({ navigation }) => {
                 useNativeDriver: true,
               }).start();
             }
-          } else {
+          } 
+          // Not in any drop zone
+          else {
             if (activeDropZone !== null) {
               setActiveDropZone(null);
               Animated.spring(dropZoneAnim, {
@@ -141,6 +143,7 @@ const HabitScreen = ({ navigation }) => {
             }
           }
         } else {
+          // Not in drop zone area
           if (activeDropZone !== null) {
             setActiveDropZone(null);
             Animated.spring(dropZoneAnim, {
@@ -153,10 +156,12 @@ const HabitScreen = ({ navigation }) => {
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
+        // Check if habit was dropped in a valid zone
         if (draggedHabit && activeDropZone) {
           handleDrop(activeDropZone, draggedHabit);
         }
         
+        // Reset drop zone animation
         Animated.spring(dropZoneAnim, {
           toValue: 0,
           tension: 100,
@@ -164,6 +169,7 @@ const HabitScreen = ({ navigation }) => {
           useNativeDriver: true,
         }).start();
         
+        // Animate habit card back to original position
         Animated.spring(dragPosition, {
           toValue: { x: 0, y: 0 },
           tension: 100,
@@ -172,7 +178,6 @@ const HabitScreen = ({ navigation }) => {
         }).start(() => {
           setDraggedHabit(null);
           setActiveDropZone(null);
-          dragPosition.setValue({ x: 0, y: 0 });
         });
       },
     });
@@ -239,11 +244,6 @@ const HabitScreen = ({ navigation }) => {
   const renderHabitCard = useCallback((habit) => {
     const isDragging = draggedHabit?.id === habit.id;
     
-    // Create pan responder only once per habit
-    if (!panResponderRef.current) {
-      panResponderRef.current = createPanResponder(habit);
-    }
-    
     return (
       <Animated.View
         key={habit.id}
@@ -269,7 +269,7 @@ const HabitScreen = ({ navigation }) => {
             elevation: 10,
           }
         ]}
-        {...panResponderRef.current.panHandlers}
+        {...createPanResponder(habit).panHandlers}
       >
         <View style={styles.cardContent}>
           <View style={styles.dragHandle}>
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   habitsContent: {
     padding: SPACING.lg,
-    paddingBottom: 200, // Account for drop zones + system bar
+    paddingBottom: 200, 
   },
   habitCard: {
     backgroundColor: COLORS.surface,
@@ -507,6 +507,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 15,
+    borderColor: COLORS.white,
+    borderWidth: 2,
   },
   cardContent: {
     flexDirection: 'row',
