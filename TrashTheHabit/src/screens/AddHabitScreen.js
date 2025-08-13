@@ -32,10 +32,21 @@ const AddHabitScreen = ({ navigation }) => {
   const successAnim = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(1)).current;
   const deleteAnim = useRef(new Animated.Value(1)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadHabits();
     loadSettings();
+    
+   
+    Animated.parallel([
+      Animated.spring(headerAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const loadHabits = async () => {
@@ -96,7 +107,7 @@ const AddHabitScreen = ({ navigation }) => {
       const newHabit = {
         id: Date.now().toString(),
         name: habitName.trim(),
-        category: 'Other',
+        category: 'Other', 
         createdAt: new Date().toISOString(),
         completedCount: 0,
         trashedCount: 0,
@@ -113,17 +124,18 @@ const AddHabitScreen = ({ navigation }) => {
       Animated.sequence([
         Animated.timing(successAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 400,
           useNativeDriver: true,
         }),
+        Animated.delay(1500), 
         Animated.timing(successAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 600,
           useNativeDriver: true,
         }),
       ]).start();
       
-      Alert.alert('Success', 'Habit added successfully!');
+    
     } catch (error) {
       console.error('Error adding habit:', error);
       Alert.alert('Error', 'Failed to add habit');
@@ -196,21 +208,44 @@ const AddHabitScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <Animated.View
+        style={[
+          styles.header,
+          { transform: [{ translateY: headerAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [50, 0],
+          })}] }
+        ]}
+      >
         <Text style={styles.title}>Add New Habit</Text>
-        <Text style={styles.subtitle}>Create a new habit to track</Text>
-      </View>
+        <Text style={styles.subtitle}>What would you like to change?</Text>
+      </Animated.View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View 
           style={[
             styles.formContainer,
             { transform: [{ scale: formAnim }] }
           ]}
         >
+          {/* Progress Indicator */}
+          <View style={styles.progressSection}>
+            <Text style={styles.progressTitle}>Your Habit Journey</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${Math.min((habits.length / 5) * 100, 100)}%` }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {habits.length} of 5 habits • {habits.length >= 5 ? 'Amazing progress!' : 'Keep building!'}
+            </Text>
+          </View>
+
           <CustomInput
             label="Habit Name"
-            placeholder="Enter habit name..."
+            placeholder="Enter your habit..."
             value={habitName}
             onChangeText={setHabitName}
             style={styles.input}
@@ -226,11 +261,42 @@ const AddHabitScreen = ({ navigation }) => {
 
         {habits.length > 0 && (
           <View style={styles.habitsList}>
-            <Text style={styles.sectionTitle}>Your Habits</Text>
+            <Text style={styles.sectionTitle}>Your Current Habits</Text>
             {habits.map(renderHabitItem)}
           </View>
         )}
       </ScrollView>
+
+     
+      {successAnim > 0 && (
+        <Animated.View 
+          style={[
+            styles.successOverlay,
+            {
+              opacity: successAnim,
+            }
+          ]}
+        >
+          <Animated.View style={[
+            styles.successContent,
+            {
+              transform: [{
+                scale: successAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.1, 1],
+                })
+              }]
+            }]
+          }>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color={COLORS.white} />
+            </View>
+            <Text style={styles.successTitle}>Habit Added!</Text>
+            <Text style={styles.successMessage}>You're one step closer to your goals!</Text>
+            <Text style={styles.successSubtext}>Keep building those positive habits!</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
 
       <FloatingNavbar
         currentRoute={currentRoute}
@@ -267,17 +333,35 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.lg,
   },
-  inputSection: {
-    marginBottom: SPACING.xl,
+  scrollContent: {
+    paddingBottom: SPACING.xxl,
+  },
+  formContainer: {
+    marginBottom: SPACING.xs,
+    paddingVertical: SPACING.lg,
+  },
+  input: {
+    marginBottom: SPACING.lg,
   },
   addButton: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
   },
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
     color: COLORS.text,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  habitsList: {
+    marginTop: SPACING.xl,
+    paddingVertical: SPACING.lg,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: SPACING.xxl,
   },
   emptyText: {
     ...FONTS.regular,
@@ -285,6 +369,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  emptySubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   habitItem: {
     flexDirection: 'row',
@@ -313,14 +403,82 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: SPACING.sm,
   },
-  formContainer: {
-    marginBottom: SPACING.xl,
+  progressSection: {
+    marginBottom: SPACING.xxl,
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
   },
-  input: {
+  progressTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.extraLarge,
+    color: COLORS.text,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  progressBar: {
+    width: '80%',
+    height: 12,
+    backgroundColor: COLORS.border,
+    borderRadius: 6,
+    overflow: 'hidden',
     marginBottom: SPACING.md,
   },
-  habitsList: {
-    marginTop: SPACING.md,
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 6,
+  },
+  progressText: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.primary + '80', // Semi-transparent overlay
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  successContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  successIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  successTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.extraLarge,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  successMessage: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  successSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.textSecondary,
   },
 });
 
