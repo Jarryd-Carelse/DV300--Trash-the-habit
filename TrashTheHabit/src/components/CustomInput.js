@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   label: {
     ...FONTS.medium,
     color: COLORS.text,
-    marginBottom: SIZES.sm,
+    marginBottom: SIZES.md,
     fontSize: SIZES.font,
   },
   inputContainer: {
