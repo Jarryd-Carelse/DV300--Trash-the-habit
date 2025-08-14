@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,98 @@ import {
   Switch,
   Alert,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { getUserSettings, saveUserSettings, clearAllData, setLoginStatus } from '../utils/storage';
+
+// Move SettingItem outside to prevent recreation on every render
+const SettingItem = React.memo(({ title, subtitle, icon, onPress, showSwitch = false, switchValue = false, onSwitchChange, index = 0 }) => {
+  const itemAnim = useRef(new Animated.Value(0)).current;
+  const iconAnim = useRef(new Animated.Value(0)).current;
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    // Only animate once when the screen first loads
+    if (!hasAnimated.current) {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.spring(itemAnim, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+          Animated.timing(iconAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        hasAnimated.current = true;
+      }, index * 100);
+    } else {
+      // If already animated, set to final state immediately
+      itemAnim.setValue(1);
+      iconAnim.setValue(1);
+    }
+  }, []);
+
+  const iconScale = iconAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.5, 1],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        opacity: itemAnim,
+        transform: [
+          { translateY: itemAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [30, 0],
+          })}
+        ]
+      }}
+    >
+      <TouchableOpacity 
+        style={styles.settingItem} 
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.settingLeft}>
+          <Animated.View 
+            style={[
+              styles.iconContainer,
+              { transform: [{ scale: iconScale }] }
+            ]}
+          >
+            <Ionicons name={icon} size={20} color={COLORS.primary} />
+          </Animated.View>
+          <View style={styles.settingText}>
+            <Text style={styles.settingTitle}>{title}</Text>
+            {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+          </View>
+        </View>
+        
+        {showSwitch ? (
+          <Switch
+            value={switchValue}
+            onValueChange={onSwitchChange}
+            trackColor={{ false: COLORS.lightGray, true: COLORS.primary + '40' }}
+            thumbColor={switchValue ? COLORS.primary : COLORS.gray}
+          />
+        ) : (
+          <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
 
 const SettingsScreen = ({ navigation }) => {
   const [settings, setSettings] = useState({
@@ -23,9 +109,40 @@ const SettingsScreen = ({ navigation }) => {
   });
   const [currentRoute, setCurrentRoute] = useState('Settings');
 
+  // Twinning animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const switchAnim = useRef(new Animated.Value(1)).current;
+
+  // Load settings when component mounts
   useEffect(() => {
     loadSettings();
   }, []);
+
+  // Play entrance animations only when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      return () => {
+        // Reset animations when leaving screen
+        fadeAnim.setValue(0);
+        slideAnim.setValue(50);
+      };
+    }, [])
+  );
 
   const loadSettings = async () => {
     try {
@@ -46,6 +163,21 @@ const SettingsScreen = ({ navigation }) => {
   const updateSetting = async (key, value) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
+    
+    // Switch toggle animation
+    Animated.sequence([
+      Animated.timing(switchAnim, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(switchAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
     await saveUserSettings(newSettings);
   };
 
@@ -78,14 +210,10 @@ const SettingsScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-             
               await setLoginStatus(false);
-              
-             
               navigation.replace('Login');
             } catch (error) {
               console.error('Error during logout:', error);
-             
               navigation.replace('Login');
             }
           },
@@ -94,58 +222,44 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const SettingItem = ({ title, subtitle, icon, onPress, showSwitch = false, switchValue = false, onSwitchChange }) => (
-    <TouchableOpacity style={styles.settingItem} onPress={onPress}>
-      <View style={styles.settingLeft}>
-        <View style={styles.iconContainer}>
-          <Ionicons name={icon} size={20} color={COLORS.primary} />
-        </View>
-        <View style={styles.settingText}>
-          <Text style={styles.settingTitle}>{title}</Text>
-          {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-        </View>
-      </View>
-      {showSwitch ? (
-        <Switch
-          value={switchValue}
-          onValueChange={onSwitchChange}
-          trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
-          thumbColor={COLORS.white}
-        />
-      ) : (
-        <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
-      )}
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <Text style={styles.title}>Settings</Text>
             <Text style={styles.subtitle}>Customize your experience</Text>
           </View>
           <TouchableOpacity 
-            style={styles.profileButton} 
+            style={styles.profileButton}
             onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.7}
           >
             <Ionicons name="person-circle" size={32} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Navigation</Text>
           <SettingItem
             title="Navbar Position"
-            subtitle={settings.navbarPosition === 'right' ? 'Right-handed' : 'Left-handed'}
-            icon="hand-left"
+            subtitle="Choose where the navigation bar appears"
+            icon="navigate"
             onPress={() => {
               const newPosition = settings.navbarPosition === 'right' ? 'left' : 'right';
               updateSetting('navbarPosition', newPosition);
             }}
+            index={0}
           />
         </View>
 
@@ -153,27 +267,30 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Preferences</Text>
           <SettingItem
             title="Sound Effects"
-            subtitle="Play sounds for actions"
+            subtitle="Enable or disable sound feedback"
             icon="volume-high"
             showSwitch
             switchValue={settings.soundEnabled}
             onSwitchChange={(value) => updateSetting('soundEnabled', value)}
+            index={1}
           />
           <SettingItem
             title="Haptic Feedback"
-            subtitle="Vibrate on actions"
+            subtitle="Enable or disable vibration feedback"
             icon="phone-portrait"
             showSwitch
             switchValue={settings.hapticsEnabled}
             onSwitchChange={(value) => updateSetting('hapticsEnabled', value)}
+            index={2}
           />
           <SettingItem
             title="Notifications"
-            subtitle="Receive reminders"
+            subtitle="Enable or disable push notifications"
             icon="notifications"
             showSwitch
             switchValue={settings.notificationsEnabled}
             onSwitchChange={(value) => updateSetting('notificationsEnabled', value)}
+            index={3}
           />
         </View>
 
@@ -184,6 +301,7 @@ const SettingsScreen = ({ navigation }) => {
             subtitle="Delete all habits and progress"
             icon="trash"
             onPress={handleClearAllData}
+            index={4}
           />
         </View>
 
@@ -194,16 +312,11 @@ const SettingsScreen = ({ navigation }) => {
             subtitle="Sign out of your account"
             icon="log-out"
             onPress={handleLogout}
+            index={5}
           />
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.versionText}>Trash the Habit v1.0.0</Text>
-          <Text style={styles.copyrightText}>© 2024 Trash the Habit</Text>
         </View>
       </ScrollView>
 
-   
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}

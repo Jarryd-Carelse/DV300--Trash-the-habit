@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
@@ -17,6 +18,7 @@ import { getHabitsData, saveHabitsData, getUserSettings } from '../utils/storage
 
 const AddHabitScreen = ({ navigation }) => {
   const [habitName, setHabitName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentRoute, setCurrentRoute] = useState('AddHabit');
@@ -27,9 +29,44 @@ const AddHabitScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
 
+  // Predefined habit categories
+  const habitCategories = [
+    'Health & Fitness',
+    'Productivity',
+    'Learning',
+    'Relationships',
+    'Finance',
+    'Mindfulness',
+    'Creativity',
+    'Other'
+  ];
+
+  // Twinning animations
+  const successAnim = useRef(new Animated.Value(0)).current;
+  const formAnim = useRef(new Animated.Value(1)).current;
+  const deleteAnim = useRef(new Animated.Value(1)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const categoryAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     loadHabits();
     loadSettings();
+    
+   
+    Animated.parallel([
+      Animated.spring(headerAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.spring(categoryAnim, {
+        toValue: 1,
+        tension: 60,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const loadHabits = async () => {
@@ -60,7 +97,31 @@ const AddHabitScreen = ({ navigation }) => {
   };
 
   const handleAddHabit = async () => {
+    if (!selectedCategory) {
+      Alert.alert('Error', 'Please select a category first');
+      return;
+    }
+    
     if (!habitName.trim()) {
+      // Shake animation for validation error
+      Animated.sequence([
+        Animated.timing(formAnim, {
+          toValue: 0.95,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formAnim, {
+          toValue: 1.05,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
       Alert.alert('Error', 'Please enter a habit name');
       return;
     }
@@ -71,7 +132,7 @@ const AddHabitScreen = ({ navigation }) => {
       const newHabit = {
         id: Date.now().toString(),
         name: habitName.trim(),
-        category: 'Other',
+        category: selectedCategory,
         createdAt: new Date().toISOString(),
         completedCount: 0,
         trashedCount: 0,
@@ -83,7 +144,24 @@ const AddHabitScreen = ({ navigation }) => {
       await saveHabitsData(updatedHabits);
 
       setHabitName('');
-      Alert.alert('Success', 'Habit added successfully!');
+      setSelectedCategory('');
+      
+      // Success animation
+      Animated.sequence([
+        Animated.timing(successAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1500), 
+        Animated.timing(successAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
+    
     } catch (error) {
       console.error('Error adding habit:', error);
       Alert.alert('Error', 'Failed to add habit');
@@ -98,69 +176,183 @@ const AddHabitScreen = ({ navigation }) => {
       'Are you sure you want to delete this habit?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
+        { 
+          text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
-            const updatedHabits = habits.filter(h => h.id !== habitId);
-            setHabits(updatedHabits);
-            await saveHabitsData(updatedHabits);
-          },
+            try {
+              const updatedHabits = habits.filter(h => h.id !== habitId);
+              setHabits(updatedHabits);
+              await saveHabitsData(updatedHabits);
+              
+              // Delete animation
+              Animated.sequence([
+                Animated.timing(deleteAnim, {
+                  toValue: 0.8,
+                  duration: 200,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(deleteAnim, {
+                  toValue: 1,
+                  duration: 200,
+                  useNativeDriver: true,
+                }),
+              ]).start();
+            } catch (error) {
+              console.error('Error deleting habit:', error);
+              Alert.alert('Error', 'Failed to delete habit');
+            }
+          }
         },
       ]
     );
   };
 
+  const renderHabitItem = (habit) => {
+    return (
+      <Animated.View
+        key={habit.id}
+        style={[
+          styles.habitItem,
+          { transform: [{ scale: deleteAnim }] }
+        ]}
+      >
+        <View style={styles.habitInfo}>
+          <Text style={styles.habitName}>{habit.name}</Text>
+          <Text style={styles.habitCategory}>{habit.category}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteHabit(habit.id)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash" size={20} color={COLORS.accent} />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Add New Habit</Text>
-        <Text style={styles.subtitle}>What habit do you want to break?</Text>
-      </View>
+      <Animated.View
+        style={[
+          styles.header,
+          { transform: [{ translateY: headerAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [50, 0],
+          })}] }
+        ]}
+      >
+        <Text style={styles.title}>Build New Habits</Text>
+        <Text style={styles.subtitle}>Choose a category and start your journey</Text>
+      </Animated.View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.inputSection}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View 
+          style={[
+            styles.formContainer,
+            { transform: [{ scale: formAnim }] }
+          ]}
+        >
+          {/* Category Selection */}
+          <Animated.View 
+            style={[
+              styles.categorySection,
+              { 
+                opacity: categoryAnim,
+                transform: [{ 
+                  translateY: categoryAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0],
+                  })
+                }] 
+              }
+            ]}
+          >
+            <Text style={styles.categoryTitle}>Choose a Category</Text>
+            <View style={styles.categoryGrid}>
+              {habitCategories.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === category && styles.selectedCategoryButton
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.categoryButtonText,
+                    selectedCategory === category && styles.selectedCategoryButtonText
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+
           <CustomInput
             label="Habit Name"
-            placeholder="e.g., Check social media first thing"
+            placeholder={selectedCategory ? `Enter your ${selectedCategory.toLowerCase()} habit...` : "Select a category first..."}
             value={habitName}
             onChangeText={setHabitName}
-            autoCapitalize="words"
+            style={styles.input}
+            editable={!!selectedCategory}
           />
-
+          
           <CustomButton
-            title="Add Habit"
+            title={selectedCategory ? "Add Habit" : "Select Category First"}
             onPress={handleAddHabit}
             loading={loading}
-            disabled={!habitName.trim()}
-            style={styles.addButton}
+            style={[styles.addButton, !selectedCategory && styles.disabledButton]}
+            disabled={!selectedCategory}
           />
-        </View>
+        </Animated.View>
 
-        <View style={styles.currentHabitsSection}>
-          <Text style={styles.sectionTitle}>Current Habits</Text>
-          {habits.length === 0 ? (
-            <Text style={styles.emptyText}>No habits yet. Add your first one above!</Text>
-          ) : (
-            habits.map((habit) => (
-              <View key={habit.id} style={styles.habitItem}>
-                <View style={styles.habitInfo}>
-                  <Text style={styles.habitName}>{habit.name}</Text>
-                  <Text style={styles.habitCategory}>{habit.category}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteHabit(habit.id)}
-                >
-                  <Ionicons name="trash" size={20} color={COLORS.accent} />
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
-        </View>
+        {habits.length > 0 && (
+          <View style={styles.habitsList}>
+            <Text style={styles.sectionTitle}>Your Current Habits</Text>
+            {habits.map(renderHabitItem)}
+          </View>
+        )}
       </ScrollView>
 
-    
+     
+      {successAnim > 0 && (
+        <Animated.View 
+          style={[
+            styles.successOverlay,
+            {
+              opacity: successAnim,
+            }
+          ]}
+        >
+          <Animated.View style={[
+            styles.successContent,
+            {
+              transform: [{
+                scale: successAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.1, 1],
+                })
+              }]
+            }]
+          }>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color={COLORS.white} />
+            </View>
+            <Text style={styles.successTitle}>Habit Added!</Text>
+            <Text style={styles.successMessage}>You're one step closer to your goals!</Text>
+            <Text style={styles.successSubtext}>Keep building those positive habits!</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
+
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
@@ -196,17 +388,35 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.lg,
   },
-  inputSection: {
-    marginBottom: SPACING.xl,
+  scrollContent: {
+    paddingBottom: SPACING.xxl,
+  },
+  formContainer: {
+    marginBottom: SPACING.xs,
+    paddingVertical: SPACING.lg,
+  },
+  input: {
+    marginBottom: SPACING.lg,
   },
   addButton: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
   },
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
     color: COLORS.text,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  habitsList: {
+    marginTop: SPACING.xl,
+    paddingVertical: SPACING.lg,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: SPACING.xxl,
   },
   emptyText: {
     ...FONTS.regular,
@@ -214,6 +424,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  emptySubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   habitItem: {
     flexDirection: 'row',
@@ -241,6 +457,115 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: SPACING.sm,
+  },
+  categorySection: {
+    marginBottom: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+  },
+  categoryTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.text,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  categoryButton: {
+    width: '48%',
+    backgroundColor: COLORS.background,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 60,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  selectedCategoryButton: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  categoryButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.text,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  selectedCategoryButtonText: {
+    color: COLORS.white,
+    ...FONTS.bold,
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.primary + '80', // Semi-transparent overlay
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  successContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  successIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  successTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.extraLarge,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  successMessage: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  successSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.textSecondary,
   },
 });
 

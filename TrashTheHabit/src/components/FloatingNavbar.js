@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
@@ -8,18 +8,21 @@ const FloatingNavbar = ({
   onNavigate, 
   position = 'right' 
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [scaleAnimation] = useState(new Animated.Value(1));
-  const [opacityAnimation] = useState(new Animated.Value(1));
-  const [isVisible, setIsVisible] = useState(true);
-  const [hasInteracted, setHasInteracted] = useState(false);
-
   const navItems = [
     { key: 'Home', icon: 'home', label: 'Home' },
     { key: 'AddHabit', icon: 'add-circle', label: 'Add Habit' },
     { key: 'Progress', icon: 'trending-up', label: 'Progress' },
     { key: 'Settings', icon: 'settings', label: 'Settings' },
   ];
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [scaleAnimation] = useState(new Animated.Value(1));
+  const [opacityAnimation] = useState(new Animated.Value(1));
+  const [isVisible, setIsVisible] = useState(true);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+  const navItemScaleAnims = useRef(navItems.map(() => new Animated.Value(1))).current;
 
   const getNavbarStyle = () => {
     return position === 'left' ? styles.navbarLeft : styles.navbarRight;
@@ -28,6 +31,41 @@ const FloatingNavbar = ({
   const getCurrentScreenIcon = () => {
     const currentItem = navItems.find(item => item.key === currentRoute);
     return currentItem ? currentItem.icon : 'home';
+  };
+
+  const animateButtonPress = (animRef) => {
+    Animated.sequence([
+      Animated.timing(animRef, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animRef, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const animateNavItemPress = (index) => {
+    Animated.sequence([
+      Animated.timing(navItemScaleAnims[index], {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(navItemScaleAnims[index], {
+        toValue: 1.1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(navItemScaleAnims[index], {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
  
@@ -99,7 +137,8 @@ const FloatingNavbar = ({
     setHasInteracted(true);
     setIsVisible(true);
     
-   
+    animateButtonPress(buttonScaleAnim);
+    
     Animated.timing(opacityAnimation, {
       toValue: 1,
       duration: 300,
@@ -107,13 +146,11 @@ const FloatingNavbar = ({
     }).start();
 
     if (isExpanded) {
-   
       Animated.spring(scaleAnimation, {
         toValue: 1,
         useNativeDriver: true,
       }).start();
     } else {
-     
       Animated.spring(scaleAnimation, {
         toValue: 1.1,
         useNativeDriver: true,
@@ -123,20 +160,20 @@ const FloatingNavbar = ({
     setIsExpanded(!isExpanded);
   };
 
-  const handleNavigation = (routeName) => {
+  const handleNavigation = (routeName, index) => {
     console.log('Navigating to:', routeName); 
     
     setHasInteracted(true);
     setIsVisible(true);
     
-  
+    animateNavItemPress(index);
+    
     Animated.timing(opacityAnimation, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
 
- 
     Animated.spring(scaleAnimation, {
       toValue: 1,
       useNativeDriver: true,
@@ -144,7 +181,6 @@ const FloatingNavbar = ({
       setIsExpanded(false);
     });
 
-  
     if (onNavigate) {
       onNavigate(routeName);
     } else {
@@ -174,22 +210,22 @@ const FloatingNavbar = ({
         }
       ]}
     >
-    
       {!isExpanded && (
-        <TouchableOpacity
-          style={styles.collapsedButton}
-          onPress={handleToggle}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={getCurrentScreenIcon()}
-            size={24}
-            color={COLORS.textSecondary}
-          />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+          <TouchableOpacity
+            style={styles.collapsedButton}
+            onPress={handleToggle}
+            activeOpacity={1}
+          >
+            <Ionicons
+              name={getCurrentScreenIcon()}
+              size={24}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
-     
       {isExpanded && (
         <Animated.View 
           style={[
@@ -198,23 +234,26 @@ const FloatingNavbar = ({
           ]}
         >
           {navItems.map((item, index) => (
-            <TouchableOpacity
+            <Animated.View 
               key={item.key}
-              style={[
-                styles.navItem,
-                currentRoute === item.key && styles.navItemActive
-              ]}
-              onPress={() => handleNavigation(item.key)}
-              activeOpacity={0.7}
+              style={{ transform: [{ scale: navItemScaleAnims[index] }] }}
             >
-              <Ionicons
-                name={item.icon}
-                size={24}
-                color={currentRoute === item.key ? COLORS.white : COLORS.textSecondary}
-              />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.navItem,
+                  currentRoute === item.key && styles.navItemActive
+                ]}
+                onPress={() => handleNavigation(item.key, index)}
+                activeOpacity={1}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={24}
+                  color={currentRoute === item.key ? COLORS.white : COLORS.textSecondary}
+                />
+              </TouchableOpacity>
+            </Animated.View>
           ))}
-          
           
           <View style={styles.downArrow}>
             <Ionicons
@@ -233,6 +272,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 30,
+    zIndex: 1000,
   },
   navbarRight: {
     right: 20,

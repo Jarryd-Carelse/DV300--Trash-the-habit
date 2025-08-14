@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,17 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { getUserSettings } from '../utils/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const HabitScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  
   // Use dummy data as specified in requirements
   const [habits, setHabits] = useState([
     { id: 1, name: 'Vaping' },
@@ -33,6 +36,8 @@ const HabitScreen = ({ navigation }) => {
   const [draggedHabit, setDraggedHabit] = useState(null);
   const [dragPosition] = useState(new Animated.ValueXY());
   const [activeDropZone, setActiveDropZone] = useState(null);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const [showTrashOverlay, setShowTrashOverlay] = useState(false);
   const [user] = useState({ name: 'Jarryd' });
   const [currentRoute, setCurrentRoute] = useState('Home');
   const [settings, setSettings] = useState({
@@ -42,8 +47,21 @@ const HabitScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
 
+
+  const successAnim = useRef(new Animated.Value(0)).current;
+  const trashAnim = useRef(new Animated.Value(0)).current;
+  const dropZoneAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     loadSettings();
+    
+  
+    return () => {
+     
+      successAnim.setValue(0);
+      trashAnim.setValue(0);
+      dropZoneAnim.setValue(0);
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -62,85 +80,168 @@ const HabitScreen = ({ navigation }) => {
     navigation.navigate(routeName);
   };
 
-  const createPanResponder = (habit) => {
+  const createPanResponder = useCallback((habit) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt, gestureState) => {
         setDraggedHabit(habit);
+        setActiveDropZone(null);
         
-        // Set the initial offset to the current position
-        dragPosition.setOffset({
-          x: dragPosition.x._value,
-          y: dragPosition.y._value,
-        });
-        
-        // Reset the value to 0 so we can track the delta
+       
         dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
-        // Update position with the gesture delta - no restrictions
+       
         dragPosition.setValue({ 
           x: gestureState.dx, 
           y: gestureState.dy 
         });
         
-        // Simple drop zone detection based on screen position
+       
         const dropZoneY = screenHeight - 200;
-        const dropZoneHeight = 120;
+        const leftZoneX = 20;
+        const rightZoneX = screenWidth / 2 + 20;
+        const zoneWidth = (screenWidth - 80) / 2;
         
-        // Only check drop zones when card is in the bottom area
-        if (gestureState.moveY > dropZoneY) {
-          const leftZoneX = 20;
-          const rightZoneX = screenWidth / 2 + 20;
-          const zoneWidth = (screenWidth - 80) / 2;
+       
+        if (gestureState.moveY > dropZoneY - 100) { 
+        
+          if (gestureState.moveX > leftZoneX - 20 && gestureState.moveX < leftZoneX + zoneWidth + 20) {
+            if (activeDropZone !== 'complete') {
+              setActiveDropZone('complete');
+              Animated.spring(dropZoneAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }).start();
+            }
+          } 
+        
+          else if (gestureState.moveX > rightZoneX - 20 && gestureState.moveX < rightZoneX + zoneWidth + 20) {
+            if (activeDropZone !== 'trash') {
+              setActiveDropZone('trash');
+              Animated.spring(dropZoneAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }).start();
+            }
+          } 
           
-          if (gestureState.moveX > leftZoneX && gestureState.moveX < leftZoneX + zoneWidth) {
-            setActiveDropZone('complete');
-          } else if (gestureState.moveX > rightZoneX && gestureState.moveX < rightZoneX + zoneWidth) {
-            setActiveDropZone('trash');
-          } else {
-            setActiveDropZone(null);
+          else {
+            if (activeDropZone !== null) {
+              setActiveDropZone(null);
+              Animated.spring(dropZoneAnim, {
+                toValue: 0,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+              }).start();
+            }
           }
         } else {
-          setActiveDropZone(null);
+          
+          if (activeDropZone !== null) {
+            setActiveDropZone(null);
+            Animated.spring(dropZoneAnim, {
+              toValue: 0,
+              tension: 100,
+              friction: 8,
+              useNativeDriver: true,
+            }).start();
+          }
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
-        // Flatten the offset and value
-        dragPosition.flattenOffset();
         
         if (draggedHabit && activeDropZone) {
-          handleDrop(activeDropZone);
+          handleDrop(activeDropZone, draggedHabit);
         }
         
-        // Animate back to original position
+        
+        Animated.spring(dropZoneAnim, {
+          toValue: 0,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }).start();
+        
+        
         Animated.spring(dragPosition, {
           toValue: { x: 0, y: 0 },
           tension: 100,
           friction: 8,
           useNativeDriver: false,
-        }).start();
-        
-        setDraggedHabit(null);
-        setActiveDropZone(null);
+        }).start(() => {
+          setDraggedHabit(null);
+          setActiveDropZone(null);
+        });
       },
     });
-  };
+  }, [activeDropZone, handleDrop]);
 
-  const handleDrop = (zoneType) => {
-    if (!draggedHabit) return;
-
+  const handleDrop = useCallback((zoneType, habit) => {
+    console.log('handleDrop called with:', zoneType, habit.name);
+    
     if (zoneType === 'complete') {
-      setCompleted(prev => [...prev, draggedHabit]);
-      setHabits(prev => prev.filter(h => h.id !== draggedHabit.id));
-    } else if (zoneType === 'trash') {
-      setTrashed(prev => [...prev, draggedHabit]);
-      setHabits(prev => prev.filter(h => h.id !== draggedHabit.id));
-    }
-  };
+      console.log('Starting success animation');
+      setShowSuccessOverlay(true);
+      
+      
+      const successSequence = Animated.sequence([
+        Animated.timing(successAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1200),
+        Animated.timing(successAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]);
+      
+      successSequence.start(() => {
+        setShowSuccessOverlay(false);
+        successAnim.setValue(0);
+      });
 
-  const renderHabitCard = (habit) => {
+      setCompleted(prev => [...prev, { ...habit, completedAt: new Date() }]);
+      setHabits(prev => prev.filter(h => h.id !== habit.id));
+    } else if (zoneType === 'trash') {
+      console.log('Starting trash animation');
+      setShowTrashOverlay(true);
+      
+    
+      const trashSequence = Animated.sequence([
+        Animated.timing(trashAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.delay(800),
+        Animated.timing(trashAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]);
+      
+      trashSequence.start(() => {
+        setShowTrashOverlay(false);
+        trashAnim.setValue(0);
+      });
+
+      setTrashed(prev => [...prev, { ...habit, trashedAt: new Date() }]);
+      setHabits(prev => prev.filter(h => h.id !== habit.id));
+    }
+  }, [successAnim, trashAnim]);
+
+  const renderHabitCard = useCallback((habit) => {
     const isDragging = draggedHabit?.id === habit.id;
     
     return (
@@ -172,7 +273,7 @@ const HabitScreen = ({ navigation }) => {
       >
         <View style={styles.cardContent}>
           <View style={styles.dragHandle}>
-            <Text style={styles.dragIcon}>≡</Text>
+            <Ionicons name="menu" size={20} color={COLORS.gray} />
           </View>
           
           <View style={styles.habitInfo}>
@@ -181,20 +282,48 @@ const HabitScreen = ({ navigation }) => {
         </View>
       </Animated.View>
     );
-  };
+  }, [draggedHabit, dragPosition, createPanResponder]);
 
   const renderDropZone = (type) => {
     const isComplete = type === 'complete';
-    const isActive = activeDropZone === type;
-    const isHighlighted = draggedHabit && isActive;
+    const isHighlighted = activeDropZone === type;
     
+   
+    const dropZoneScale = dropZoneAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0.95],
+    });
+
+   
+    const getHighlightStyle = () => {
+      if (activeDropZone === type) {
+        if (isComplete) {
+          return {
+            borderColor: COLORS.success,
+            borderWidth: 3,
+            borderStyle: 'solid',
+          };
+        } else {
+          return {
+            borderColor: COLORS.accent,
+            borderWidth: 3,
+            borderStyle: 'solid',
+          };
+        }
+      }
+      return {};
+    };
+
     return (
-      <View
+      <Animated.View
+        key={type}
         style={[
           styles.dropZone,
           isComplete ? styles.completeZone : styles.trashZone,
-          isActive && styles.activeDropZone,
-          isHighlighted && styles.highlightedDropZone,
+          getHighlightStyle(),
+          {
+            transform: [{ scale: isHighlighted ? dropZoneScale : 1 }]
+          }
         ]}
       >
         <Ionicons
@@ -209,17 +338,24 @@ const HabitScreen = ({ navigation }) => {
           {isComplete ? 'Complete' : 'Trash'}
         </Text>
         {isHighlighted && (
-          <View style={styles.dropIndicator}>
+          <Animated.View 
+            style={[
+              styles.dropIndicator,
+              { 
+                opacity: dropZoneAnim,
+                backgroundColor: isComplete ? COLORS.success : COLORS.accent
+              }
+            ]}
+          >
             <Text style={styles.dropIndicatorText}>Drop here!</Text>
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-    
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.welcomeText}>
           Welcome back, {user.name}!
@@ -229,12 +365,11 @@ const HabitScreen = ({ navigation }) => {
         </Text>
       </View>
 
-     
       <ScrollView 
         style={styles.habitsList}
-        contentContainerStyle={styles.habitsContent}
+        contentContainerStyle={[styles.habitsContent, { paddingBottom: 200 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={!draggedHabit} // Disable scroll when dragging
+        scrollEnabled={!draggedHabit}
       >
         {habits.length === 0 ? (
           <View style={styles.emptyState}>
@@ -248,11 +383,72 @@ const HabitScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
-     
-      <View style={styles.dropZonesContainer}>
+      <View style={[styles.dropZonesContainer, { paddingBottom: SPACING.lg + insets.bottom }]}>
         {renderDropZone('complete')}
         {renderDropZone('trash')}
       </View>
+
+      {/* Success Animation Overlay */}
+      {showSuccessOverlay && (
+        <Animated.View 
+          style={[
+            styles.animationOverlay,
+            styles.successOverlay,
+            {
+              opacity: successAnim,
+            }
+          ]}
+        >
+          <Animated.View style={[
+            styles.successContent,
+            {
+              transform: [{
+                scale: successAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.1, 1],
+                })
+              }]
+            }]
+          }>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={100} color={COLORS.white} />
+            </View>
+            <Text style={styles.animationText}>Well done! You beat a habit today!</Text>
+            <Text style={styles.successSubtext}>Keep up the amazing work!</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
+
+      {/* Trash Animation Overlay */}
+      {showTrashOverlay && (
+        <Animated.View 
+          style={[
+            styles.animationOverlay,
+            styles.trashOverlay,
+            {
+              opacity: trashAnim,
+            }
+          ]}
+        >
+          <Animated.View style={[
+            styles.trashContent,
+            {
+              transform: [{
+                scale: trashAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.8, 1.1, 1],
+                })
+              }]
+            }]
+          }>
+            <View style={styles.trashIconContainer}>
+              <Ionicons name="trash" size={100} color={COLORS.white} />
+            </View>
+            <Text style={styles.trashText}>Habit Trashed!</Text>
+            <Text style={styles.trashSubtext}>Do better next time!</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
 
       <FloatingNavbar
         currentRoute={currentRoute}
@@ -290,6 +486,7 @@ const styles = StyleSheet.create({
   },
   habitsContent: {
     padding: SPACING.lg,
+    paddingBottom: 200, 
   },
   habitCard: {
     backgroundColor: COLORS.surface,
@@ -297,14 +494,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...SHADOWS.medium,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   draggingCard: {
-    ...SHADOWS.dark,
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 15,
+    borderColor: COLORS.white,
+    borderWidth: 2,
   },
   cardContent: {
     flexDirection: 'row',
@@ -313,11 +516,7 @@ const styles = StyleSheet.create({
   },
   dragHandle: {
     marginRight: SPACING.md,
-  },
-  dragIcon: {
-    fontSize: 20,
-    color: COLORS.textSecondary,
-    fontWeight: 'bold',
+    padding: SPACING.sm,
   },
   habitInfo: {
     flex: 1,
@@ -352,6 +551,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    paddingBottom: SPACING.lg,
   },
   dropZone: {
     flex: 1,
@@ -364,26 +569,17 @@ const styles = StyleSheet.create({
     minHeight: 120,
     borderWidth: 2,
     borderStyle: 'dashed',
-    ...SHADOWS.medium,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6.27,
+    elevation: 8,
   },
   completeZone: {
     borderColor: COLORS.success,
   },
   trashZone: {
     borderColor: COLORS.accent,
-  },
-  activeDropZone: {
-    backgroundColor: COLORS.lightGray,
-  },
-  highlightedDropZone: {
-    backgroundColor: COLORS.primary + '20',
-    borderColor: COLORS.primary,
-    borderWidth: 3,
-    borderStyle: 'solid',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   dropZoneText: {
     ...FONTS.bold,
@@ -403,6 +599,75 @@ const styles = StyleSheet.create({
     ...FONTS.medium,
     color: COLORS.white,
     fontSize: SIZES.small,
+  },
+  animationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  successOverlay: {
+    backgroundColor: 'rgba(76, 175, 80, 0.95)',
+  },
+  trashOverlay: {
+    backgroundColor: 'rgba(255, 82, 82, 0.95)',
+  },
+  animationText: {
+    ...FONTS.bold,
+    fontSize: 24,
+    color: COLORS.white,
+    marginTop: SPACING.md,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  successContent: {
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  successIconContainer: {
+    backgroundColor: COLORS.success + '50',
+    borderRadius: 50,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  successSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.white,
+    textAlign: 'center',
+  },
+  trashContent: {
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  trashIconContainer: {
+    backgroundColor: COLORS.accent + '50',
+    borderRadius: 50,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  trashText: {
+    ...FONTS.bold,
+    fontSize: 24,
+    color: COLORS.white,
+    marginTop: SPACING.md,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  trashSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.white,
+    textAlign: 'center',
   },
 });
 

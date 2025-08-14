@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
@@ -20,6 +21,11 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Twinning animations
+  const formAnim = useRef(new Animated.Value(1)).current;
+  const logoAnim = useRef(new Animated.Value(1)).current;
+  const successAnim = useRef(new Animated.Value(0)).current;
 
   const validateForm = () => {
     const newErrors = {};
@@ -37,6 +43,28 @@ const LoginScreen = ({ navigation }) => {
     }
 
     setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      // Shake animation for validation errors
+      Animated.sequence([
+        Animated.timing(formAnim, {
+          toValue: 0.98,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formAnim, {
+          toValue: 1.02,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    
     return Object.keys(newErrors).length === 0;
   };
 
@@ -46,10 +74,22 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     
     try {
-     
       if (email === 'jarryd@mail.com' && password === '123456') {
-        
         await setLoginStatus(true);
+        
+        // Success animation
+        Animated.sequence([
+          Animated.timing(successAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(successAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
         
         setLoading(false);
         navigation.replace('Home');
@@ -67,6 +107,16 @@ const LoginScreen = ({ navigation }) => {
     navigation.navigate('SignUp');
   };
 
+  const logoScale = logoAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 1],
+  });
+
+  const successScale = successAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 1.2],
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -77,7 +127,12 @@ const LoginScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
+          <Animated.View 
+            style={[
+              styles.header,
+              { transform: [{ scale: logoScale }] }
+            ]}
+          >
             <Image 
               source={require('../../assets/TTH.png')} 
               style={styles.logo}
@@ -85,9 +140,14 @@ const LoginScreen = ({ navigation }) => {
             />
             <Text style={styles.title}>Trash the Habit</Text>
             <Text style={styles.subtitle}>Break bad habits, build better ones</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.form}>
+          <Animated.View 
+            style={[
+              styles.form,
+              { transform: [{ scale: formAnim }] }
+            ]}
+          >
             <CustomInput
               label="Email"
               placeholder="Enter your email"
@@ -115,16 +175,29 @@ const LoginScreen = ({ navigation }) => {
             />
 
             <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account?</Text>
+              <Text style={styles.signUpText}>Don't have an account? </Text>
               <CustomButton
-                title="Create Account"
+                title="Sign Up"
                 onPress={handleSignUp}
                 variant="outline"
                 size="small"
-                style={styles.createAccountButton}
               />
             </View>
-          </View>
+          </Animated.View>
+
+          {successAnim > 0 && (
+            <Animated.View 
+              style={[
+                styles.successOverlay,
+                { 
+                  opacity: successAnim,
+                  transform: [{ scale: successScale }]
+                }
+              ]}
+            >
+              <Text style={styles.successText}>✓ Login Successful!</Text>
+            </Animated.View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -183,6 +256,22 @@ const styles = StyleSheet.create({
   },
   createAccountButton: {
     marginTop: SPACING.xs,
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -100 }, { translateY: -50 }],
+    backgroundColor: COLORS.success,
+    padding: SPACING.md,
+    borderRadius: SPACING.md,
+    zIndex: 1,
+  },
+  successText: {
+    ...FONTS.bold,
+    fontSize: SIZES.font,
+    color: COLORS.white,
+    textAlign: 'center',
   },
 });
 
