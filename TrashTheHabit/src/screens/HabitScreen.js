@@ -47,7 +47,7 @@ const HabitScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
 
-  // Animation refs
+
   const successAnim = useRef(new Animated.Value(0)).current;
   const trashAnim = useRef(new Animated.Value(0)).current;
   const dropZoneAnim = useRef(new Animated.Value(0)).current;
@@ -55,9 +55,9 @@ const HabitScreen = ({ navigation }) => {
   useEffect(() => {
     loadSettings();
     
-    // Cleanup function to prevent memory leaks
+  
     return () => {
-      // Reset all animations when component unmounts
+     
       successAnim.setValue(0);
       trashAnim.setValue(0);
       dropZoneAnim.setValue(0);
@@ -88,25 +88,25 @@ const HabitScreen = ({ navigation }) => {
         setDraggedHabit(habit);
         setActiveDropZone(null);
         
-        // Reset drag position
+       
         dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
-        // Update drag position
+       
         dragPosition.setValue({ 
           x: gestureState.dx, 
           y: gestureState.dy 
         });
         
-        // Calculate drop zone positions more accurately
-        const dropZoneY = screenHeight - 200; // Bottom area where drop zones are
+       
+        const dropZoneY = screenHeight - 200;
         const leftZoneX = 20;
         const rightZoneX = screenWidth / 2 + 20;
         const zoneWidth = (screenWidth - 80) / 2;
         
-        // Check if gesture is in the drop zone area (make it more responsive)
-        if (gestureState.moveY > dropZoneY - 100) { // Increased detection area
-          // Check if in complete zone (left side)
+       
+        if (gestureState.moveY > dropZoneY - 100) { 
+        
           if (gestureState.moveX > leftZoneX - 20 && gestureState.moveX < leftZoneX + zoneWidth + 20) {
             if (activeDropZone !== 'complete') {
               setActiveDropZone('complete');
@@ -118,7 +118,7 @@ const HabitScreen = ({ navigation }) => {
               }).start();
             }
           } 
-          // Check if in trash zone (right side)
+        
           else if (gestureState.moveX > rightZoneX - 20 && gestureState.moveX < rightZoneX + zoneWidth + 20) {
             if (activeDropZone !== 'trash') {
               setActiveDropZone('trash');
@@ -130,7 +130,7 @@ const HabitScreen = ({ navigation }) => {
               }).start();
             }
           } 
-          // Not in any drop zone
+          
           else {
             if (activeDropZone !== null) {
               setActiveDropZone(null);
@@ -143,7 +143,7 @@ const HabitScreen = ({ navigation }) => {
             }
           }
         } else {
-          // Not in drop zone area
+          
           if (activeDropZone !== null) {
             setActiveDropZone(null);
             Animated.spring(dropZoneAnim, {
@@ -156,12 +156,12 @@ const HabitScreen = ({ navigation }) => {
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
-        // Check if habit was dropped in a valid zone
+        
         if (draggedHabit && activeDropZone) {
           handleDrop(activeDropZone, draggedHabit);
         }
         
-        // Reset drop zone animation
+        
         Animated.spring(dropZoneAnim, {
           toValue: 0,
           tension: 100,
@@ -169,7 +169,7 @@ const HabitScreen = ({ navigation }) => {
           useNativeDriver: true,
         }).start();
         
-        // Animate habit card back to original position
+        
         Animated.spring(dragPosition, {
           toValue: { x: 0, y: 0 },
           tension: 100,
@@ -190,7 +190,7 @@ const HabitScreen = ({ navigation }) => {
       console.log('Starting success animation');
       setShowSuccessOverlay(true);
       
-      // Enhanced success animation with celebration
+      
       const successSequence = Animated.sequence([
         Animated.timing(successAnim, {
           toValue: 1,
@@ -216,7 +216,7 @@ const HabitScreen = ({ navigation }) => {
       console.log('Starting trash animation');
       setShowTrashOverlay(true);
       
-      // Trash animation
+    
       const trashSequence = Animated.sequence([
         Animated.timing(trashAnim, {
           toValue: 1,
@@ -288,13 +288,13 @@ const HabitScreen = ({ navigation }) => {
     const isComplete = type === 'complete';
     const isHighlighted = activeDropZone === type;
     
-    // Scale down when highlighted (smaller animation)
+   
     const dropZoneScale = dropZoneAnim.interpolate({
       inputRange: [0, 1],
       outputRange: [1, 0.95],
     });
 
-    // Different highlight colors for each zone type
+   
     const getHighlightStyle = () => {
       if (activeDropZone === type) {
         if (isComplete) {
