@@ -83,9 +83,8 @@ const ProgressScreen = ({ navigation }) => {
           const totalHabits = activeHabits.length + completedHabits.length + failedHabits.length;
           const successRate = totalHabits > 0 ? Math.round((completedHabits.length / totalHabits) * 100) : 0;
           
-          // Calculate streaks (simplified - you can enhance this logic)
-          const currentStreak = completedHabits.length > 0 ? 1 : 0;
-          const longestStreak = Math.max(currentStreak, completedHabits.length);
+          const currentStreak = calculateCurrentStreak(completedHabits);
+          const longestStreak = calculateLongestStreak(completedHabits);
           
           setProgress({
             totalHabits,
@@ -107,6 +106,72 @@ const ProgressScreen = ({ navigation }) => {
       console.error('Error loading progress:', error);
       setHasLoaded(true);
     }
+  };
+
+  const calculateCurrentStreak = (completedHabits) => {
+    if (!completedHabits || completedHabits.length === 0) return 0;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let currentStreak = 0;
+    let currentDate = new Date(today);
+    
+    while (true) {
+      const dateString = currentDate.toISOString().split('T')[0];
+      const habitsForDate = completedHabits.filter(habit => {
+        const completedDate = new Date(habit.completedAt);
+        const completedDateString = completedDate.toISOString().split('T')[0];
+        return completedDateString === dateString;
+      });
+      
+      if (habitsForDate.length > 0) {
+        currentStreak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    
+    return currentStreak;
+  };
+
+  const calculateLongestStreak = (completedHabits) => {
+    if (!completedHabits || completedHabits.length === 0) return 0;
+    
+    const dateMap = new Map();
+    
+    completedHabits.forEach(habit => {
+      if (habit.completedAt) {
+        const dateString = new Date(habit.completedAt).toISOString().split('T')[0];
+        dateMap.set(dateString, (dateMap.get(dateString) || 0) + 1);
+      }
+    });
+    
+    const sortedDates = Array.from(dateMap.keys()).sort();
+    let longestStreak = 0;
+    let currentStreak = 0;
+    let previousDate = null;
+    
+    for (const dateString of sortedDates) {
+      const currentDate = new Date(dateString);
+      
+      if (previousDate === null) {
+        currentStreak = 1;
+      } else {
+        const dayDiff = Math.floor((currentDate - previousDate) / (1000 * 60 * 60 * 24));
+        if (dayDiff === 1) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+      }
+      
+      longestStreak = Math.max(longestStreak, currentStreak);
+      previousDate = currentDate;
+    }
+    
+    return longestStreak;
   };
 
   const loadSettings = async () => {
