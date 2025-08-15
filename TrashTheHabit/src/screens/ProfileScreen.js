@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import * as Firebase from '../config/firebase';
@@ -26,14 +25,18 @@ const ProfileScreen = ({ navigation }) => {
       updateUserProfile: typeof Firebase.updateUserProfile,
       auth: typeof Firebase.auth
     });
-  }, []);
+    
+    console.log('Current userProfile state:', userProfile);
+    console.log('Current avatar seed:', userProfile.avatarSeed);
+  }, [userProfile]);
   
   const [userProfile, setUserProfile] = useState({
     firstName: '',
     lastName: '',
     email: user?.email || '',
     dateOfBirth: '',
-    profileImage: null, 
+    avatarSeed: '', // Random seed for avatar generation
+    avatarStyle: 'adventurer', // Default avatar style
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -42,8 +45,12 @@ const ProfileScreen = ({ navigation }) => {
     lastName: '',
     dateOfBirth: '',
   });
-  const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [habitStats, setHabitStats] = useState({
+    total: 0,
+    completed: 0,
+    trashed: 0
+  });
 
   // Load user profile from Firestore when component mounts
   useEffect(() => {
@@ -51,6 +58,18 @@ const ProfileScreen = ({ navigation }) => {
       loadUserProfile();
     }
   }, [user]);
+
+  // Generate avatar seed if user doesn't have one
+  useEffect(() => {
+    if (user && !userProfile.avatarSeed) {
+      generateNewAvatar('adventurer');
+    }
+  }, [user, userProfile.avatarSeed]);
+
+  const getAvatarUrl = (seed, style = 'adventurer') => {
+    if (!seed) return null;
+    return `https://api.dicebear.com/7.x/${style}/png?seed=${seed}`;
+  };
 
   const loadUserProfile = async () => {
     try {
@@ -68,13 +87,52 @@ const ProfileScreen = ({ navigation }) => {
         setUserProfile(prev => ({
           ...prev,
           ...profile,
-          email: user?.email || prev.email
+          email: user?.email || prev.email,
+          avatarSeed: profile.avatarSeed || prev.avatarSeed,
+          avatarStyle: profile.avatarStyle || prev.avatarStyle
         }));
       }
+      
+      // Load habit statistics
+      await loadHabitStats();
     } catch (error) {
       console.error('Error loading user profile:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadHabitStats = async () => {
+    try {
+      if (typeof Firebase.getUserHabits !== 'function') {
+        console.error('getUserHabits function not available');
+        return;
+      }
+
+      // Get habits once to calculate statistics
+      const habitsData = await new Promise((resolve) => {
+        const unsubscribe = Firebase.getUserHabits((data) => {
+          unsubscribe();
+          resolve(data);
+        });
+      });
+
+      if (habitsData) {
+        const total = habitsData.all?.length || 0;
+        const completed = habitsData.completed?.length || 0;
+        const trashed = habitsData.trashed?.length || 0;
+        
+        const stats = {
+          total,
+          completed,
+          trashed
+        };
+        
+        console.log('Habit statistics loaded:', stats);
+        setHabitStats(stats);
+      }
+    } catch (error) {
+      console.error('Error loading habit statistics:', error);
     }
   };
 
@@ -138,116 +196,52 @@ const ProfileScreen = ({ navigation }) => {
     });
   };
 
-  const handleChangePhoto = async () => {
-    try {
-      setIsLoadingImage(true);
-      
-      
-      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (cameraPermission.status !== 'granted' || mediaLibraryPermission.status !== 'granted') {
-        const permissionMessage = 
-          cameraPermission.status !== 'granted' && mediaLibraryPermission.status !== 'granted'
-            ? 'Camera and Photo Library permissions are required.'
-            : cameraPermission.status !== 'granted'
-            ? 'Camera permission is required.'
-            : 'Photo Library permission is required.';
-            
-        Alert.alert(
-          'Permission Required',
-          `${permissionMessage} Please go to your device Settings > Privacy & Security > Camera/Photos and enable access for this app.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => {
-              
-              Alert.alert('Settings', 'Please manually open your device settings and enable camera and photo permissions for this app.');
-            }}
-          ]
-        );
-        setIsLoadingImage(false);
-        return;
-      }
+  const handleChangeAvatar = () => {
+    Alert.alert(
+      'Change Avatar',
+      'Choose avatar style and generate new?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Adventurer Style',
+          onPress: () => generateNewAvatar('adventurer'),
+        },
+        {
+          text: 'Bot Style',
+          onPress: () => generateNewAvatar('bottts'),
+        },
+        {
+          text: 'Pixel Style',
+          onPress: () => generateNewAvatar('pixel-art'),
+        },
+        {
+          text: 'Fantasy Style',
+          onPress: () => generateNewAvatar('avataaars'),
+        },
+      ]
+    );
+  };
 
-   
-      Alert.alert(
-        'Change Profile Picture',
-        'Choose an option',
-        [
-          {
-            text: 'Take Photo',
-            onPress: async () => {
-              try {
-                const result = await ImagePicker.launchCameraAsync({
-                  mediaTypes: 'images',
-                  allowsEditing: true,
-                  aspect: [1, 1],
-                  quality: 0.8,
-                });
-
-                if (!result.canceled && result.assets[0]) {
-                  setUserProfile(prev => ({
-                    ...prev,
-                    profileImage: result.assets[0].uri,
-                  }));
-                }
-              } catch (error) {
-                console.error('Error taking photo:', error);
-                Alert.alert('Error', 'Failed to take photo. Please try again.');
-              } finally {
-                setIsLoadingImage(false);
-              }
-            },
-          },
-          {
-            text: 'Choose from Library',
-            onPress: async () => {
-              try {
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: 'images',
-                  allowsEditing: true,
-                  aspect: [1, 1],
-                  quality: 0.8,
-                });
-
-                if (!result.canceled && result.assets[0]) {
-                  setUserProfile(prev => ({
-                    ...prev,
-                    profileImage: result.assets[0].uri,
-                  }));
-                }
-              } catch (error) {
-                console.error('Error picking image:', error);
-                Alert.alert('Error', 'Failed to pick image. Please try again.');
-              } finally {
-                setIsLoadingImage(false);
-              }
-            },
-          },
-          {
-            text: 'Remove Current Photo',
-            style: 'destructive',
-            onPress: () => {
-              setUserProfile(prev => ({
-                ...prev,
-                profileImage: null,
-              }));
-              setIsLoadingImage(false);
-            },
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              setIsLoadingImage(false);
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-      setIsLoadingImage(false);
+  const generateNewAvatar = (style = 'adventurer') => {
+    // Use a more reliable seed generation
+    const seed = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    console.log('Generating new avatar with seed:', seed, 'style:', style);
+    
+    setUserProfile(prev => ({
+      ...prev,
+      avatarSeed: seed,
+      avatarStyle: style
+    }));
+    
+    // Save to Firestore
+    if (user?.uid) {
+      Firebase.updateUserProfile({ 
+        avatarSeed: seed,
+        avatarStyle: style
+      });
     }
   };
 
@@ -334,9 +328,9 @@ const ProfileScreen = ({ navigation }) => {
           <>
             <View style={styles.profileSection}>
               <View style={styles.profileImageContainer}>
-                {userProfile.profileImage ? (
-                  <Image 
-                    source={{ uri: userProfile.profileImage }} 
+                {userProfile.avatarSeed ? (
+                  <Image
+                    source={{ uri: getAvatarUrl(userProfile.avatarSeed, userProfile.avatarStyle) }}
                     style={styles.profileImage}
                   />
                 ) : (
@@ -345,15 +339,10 @@ const ProfileScreen = ({ navigation }) => {
                   </View>
                 )}
                 <TouchableOpacity 
-                  style={[styles.changePhotoButton, isLoadingImage && styles.changePhotoButtonDisabled]} 
-                  onPress={handleChangePhoto}
-                  disabled={isLoadingImage}
+                  style={styles.changePhotoButton} 
+                  onPress={handleChangeAvatar}
                 >
-                  {isLoadingImage ? (
-                    <Ionicons name="hourglass" size={20} color={COLORS.white} />
-                  ) : (
-                    <Ionicons name="camera" size={20} color={COLORS.white} />
-                  )}
+                  <Ionicons name="shuffle" size={20} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
               
@@ -465,17 +454,17 @@ const ProfileScreen = ({ navigation }) => {
               
               <View style={styles.statsGrid}>
                 <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>15</Text>
-                  <Text style={styles.statLabel}>Habits Tracked</Text>
+                  <Text style={styles.statNumber}>{habitStats.total}</Text>
+                  <Text style={styles.statLabel}>Total Habits</Text>
                 </View>
                 
                 <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>8</Text>
+                  <Text style={styles.statNumber}>{habitStats.completed}</Text>
                   <Text style={styles.statLabel}>Completed</Text>
                 </View>
                 
                 <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>7</Text>
+                  <Text style={styles.statNumber}>{habitStats.trashed}</Text>
                   <Text style={styles.statLabel}>Trashed</Text>
                 </View>
               </View>
@@ -547,30 +536,30 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-  },
-  defaultAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
   },
   changePhotoButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.primary,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: COLORS.success || '#4CAF50', // Green color
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: COLORS.white,
-  },
-  changePhotoButtonDisabled: {
-    opacity: 0.7,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   userName: {
     ...FONTS.bold,
@@ -597,7 +586,7 @@ const styles = StyleSheet.create({
     ...FONTS.bold,
     fontSize: SIZES.large,
     color: COLORS.text,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   infoItem: {
     flexDirection: 'row',
@@ -701,6 +690,16 @@ const styles = StyleSheet.create({
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+  },
+  defaultAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: COLORS.primary,
   },
 });
 
