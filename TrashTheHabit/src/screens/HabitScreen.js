@@ -87,31 +87,37 @@ const HabitScreen = ({ navigation }) => {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt, gestureState) => {
-        console.log('PanResponder granted for habit:', habit.name);
+        console.log('PanResponder grant:', { x0: gestureState.x0, y0: gestureState.y0 });
+        // Don't set initial position - keep card in place until actually moving
         setDraggedHabit(habit);
         setActiveDropZone(null);
-        
-        dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
-        dragPosition.setValue({ 
-          x: gestureState.dx, 
-          y: gestureState.dy 
-        });
+        // Calculate offset from the initial touch point for smooth movement
+        const offsetX = gestureState.dx;
+        const offsetY = gestureState.dy;
         
-        // Check if habit is over a drop zone
-        const dropZoneY = screenHeight - 200; // Approximate position of drop zones
-        if (gestureState.dy > dropZoneY) {
-          if (gestureState.dx < screenWidth / 2) {
+        dragPosition.setValue({ x: offsetX, y: offsetY });
+        
+        // Check if habit is over a drop zone with very forgiving detection
+        if (gestureState.moveY > screenHeight - 200) { // Check if near bottom area
+          // Add horizontal buffer zones for more forgiving detection
+          const leftBuffer = screenWidth * 0.4;  // 40% of screen width for complete zone
+          const rightBuffer = screenWidth * 0.6; // 60% of screen width for failed zone
+          
+          if (gestureState.moveX < leftBuffer) {
             if (activeDropZone !== 'complete') {
               console.log('Hovering over complete zone');
               setActiveDropZone('complete');
             }
-          } else {
+          } else if (gestureState.moveX > rightBuffer) {
             if (activeDropZone !== 'failed') {
               console.log('Hovering over failed zone');
               setActiveDropZone('failed');
             }
+          } else {
+            // Middle area - keep current zone active if any
+            console.log('In middle area, keeping current zone');
           }
         } else {
           if (activeDropZone !== null) {
@@ -121,31 +127,41 @@ const HabitScreen = ({ navigation }) => {
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
-        const dropZoneY = screenHeight - 200;
+        console.log('PanResponder release:', { moveX: gestureState.moveX, moveY: gestureState.moveY });
         
-        if (gestureState.dy > dropZoneY) {
-          if (gestureState.dx < screenWidth / 2) {
+        if (gestureState.moveY > screenHeight - 200) { // Check if near bottom area
+          // Use same forgiving horizontal detection as move detection
+          const leftBuffer = screenWidth * 0.4;  // 40% of screen width for complete zone
+          const rightBuffer = screenWidth * 0.6; // 60% of screen width for failed zone
+          
+          if (gestureState.moveX < leftBuffer) {
             console.log('Dropping habit in complete zone:', habit.name);
             handleHabitDrop(habit, 'complete');
-          } else {
+          } else if (gestureState.moveX > rightBuffer) {
             console.log('Dropping habit in failed zone:', habit.name);
             handleHabitDrop(habit, 'failed');
+          } else {
+            console.log('Dropped in middle area, keeping habit in original position');
           }
         } else {
           console.log('Habit dropped outside zones, returning to original position');
         }
         
+        // Reset drag state
+        dragPosition.setValue({ x: 0, y: 0 }); // Reset drag position
         setDraggedHabit(null);
         setActiveDropZone(null);
-        dragPosition.setValue({ x: 0, y: 0 });
       },
     });
   }, [activeDropZone]);
 
   const handleHabitDrop = async (habit, zoneType) => {
+    console.log('handleHabitDrop called with:', { habit: habit.name, zoneType });
+    
     if (zoneType === 'complete') {
       console.log('Completing habit:', habit.name);
       const result = await updateHabitStatus(habit.id, 'completed', { completedAt: new Date() });
+      console.log('Update result:', result);
       
       if (result.success) {
         setShowSuccessOverlay(true);
@@ -170,6 +186,7 @@ const HabitScreen = ({ navigation }) => {
     } else if (zoneType === 'failed') {
       console.log('Marking habit as failed:', habit.name);
       const result = await updateHabitStatus(habit.id, 'failed', { failedAt: new Date() });
+      console.log('Update result:', result);
       
       if (result.success) {
         setShowTrashOverlay(true);
@@ -242,12 +259,8 @@ const HabitScreen = ({ navigation }) => {
           isDragging && styles.draggingCard,
           isDragging && {
             transform: [
-              {
-                translateX: dragPosition.x,
-              },
-              {
-                translateY: dragPosition.y,
-              },
+              { translateX: dragPosition.x },
+              { translateY: dragPosition.y },
               { 
                 rotate: dragPosition.y.interpolate({
                   inputRange: [-100, 0, 100],
@@ -257,6 +270,10 @@ const HabitScreen = ({ navigation }) => {
             ],
             zIndex: 1000,
             elevation: 10,
+            shadowColor: COLORS.primary,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.6,
+            shadowRadius: 12,
           }
         ]}
         {...createPanResponder(habit).panHandlers}
@@ -294,10 +311,13 @@ const HabitScreen = ({ navigation }) => {
   }, [draggedHabit, dragPosition, createPanResponder]);
 
   const renderDropZone = (zoneType) => {
+    console.log('Rendering drop zone:', zoneType);
     const isHighlighted = activeDropZone === zoneType;
     const isCompleteZone = zoneType === 'complete';
     const isFailedZone = zoneType === 'failed';
     
+    console.log('Drop zone state:', { zoneType, isHighlighted, isCompleteZone, isFailedZone });
+
     const zoneConfig = {
       complete: {
         title: 'Beat Habit Today!',
@@ -346,7 +366,7 @@ const HabitScreen = ({ navigation }) => {
         key={zoneType}
         style={[
           styles.dropZone,
-          isCompleteZone ? styles.completeZone : styles.trashZone,
+          isCompleteZone ? styles.completeZone : styles.failedZone,
           getHighlightStyle(),
         ]}
       >
@@ -356,19 +376,18 @@ const HabitScreen = ({ navigation }) => {
             size={40}
             color={config.color}
           />
-          <Text style={styles.dropZoneTitle}>
+          <Text style={[styles.dropZoneTitle, { color: config.color }]}>
             {config.title}
           </Text>
           <Text style={styles.dropZoneSubtitle}>
             {config.subtitle}
           </Text>
+          {isHighlighted && (
+            <View style={styles.dropIndicator}>
+              <Text style={styles.dropIndicatorText}>Drop here!</Text>
+            </View>
+          )}
         </View>
-        
-        {isHighlighted && (
-          <Animated.View style={styles.dropIndicator}>
-            <Text style={styles.dropIndicatorText}>Drop here!</Text>
-          </Animated.View>
-        )}
       </Animated.View>
     );
   };
@@ -412,6 +431,14 @@ const HabitScreen = ({ navigation }) => {
       </ScrollView>
 
       <View style={[styles.dropZonesContainer, { paddingBottom: SPACING.lg + insets.bottom }]}>
+        {/* Debug info */}
+        {draggedHabit && (
+          <View style={styles.debugInfo}>
+            <Text style={styles.debugText}>
+              Dragging: {draggedHabit.name} | Active Zone: {activeDropZone || 'none'}
+            </Text>
+          </View>
+        )}
         {renderDropZone('complete')}
         {renderDropZone('failed')}
       </View>
@@ -615,9 +642,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.surface,
     borderRadius: SIZES.radius,
-    padding: SPACING.md,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: SPACING.sm,
     minHeight: 120,
     borderWidth: 3,
@@ -632,7 +658,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.success,
     backgroundColor: COLORS.success + '10',
   },
-  trashZone: {
+  failedZone: {
     backgroundColor: COLORS.error + '20',
     borderColor: COLORS.error + '40',
   },
@@ -767,6 +793,18 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     textAlign: 'center',
     marginTop: SPACING.sm,
+  },
+  debugInfo: {
+    position: 'absolute',
+    top: SPACING.md,
+    left: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: SPACING.sm,
+    borderRadius: SPACING.xs,
+  },
+  debugText: {
+    color: COLORS.white,
+    fontSize: SIZES.small,
   },
 });
 

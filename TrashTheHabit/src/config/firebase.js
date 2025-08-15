@@ -110,7 +110,7 @@ export const createHabit = async (habitData) => {
     const habitDoc = await addDoc(collection(db, 'habits'), {
       ...habitData,
       userId: user.uid,
-      status: 'active', // active, completed, trashed
+      status: 'active', // active, completed, failed
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
