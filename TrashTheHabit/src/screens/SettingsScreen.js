@@ -14,7 +14,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getUserSettings, saveUserSettings, clearAllData, setLoginStatus } from '../utils/storage';
+import { getUserSettings, saveUserSettings, clearAllData } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
 
 // Move SettingItem outside to prevent recreation on every render
 const SettingItem = React.memo(({ title, subtitle, icon, onPress, showSwitch = false, switchValue = false, onSwitchChange, index = 0 }) => {
@@ -108,6 +109,7 @@ const SettingsScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
   const [currentRoute, setCurrentRoute] = useState('Settings');
+  const { logout } = useAuth();
 
   // Twinning animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -210,11 +212,16 @@ const SettingsScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await setLoginStatus(false);
-              navigation.replace('Login');
+              const result = await logout();
+              if (result.success) {
+                // Logout successful, user will be automatically redirected to login screen
+                // by the AuthContext
+              } else {
+                Alert.alert('Error', result.error || 'Logout failed. Please try again.');
+              }
             } catch (error) {
               console.error('Error during logout:', error);
-              navigation.replace('Login');
+              Alert.alert('Error', 'Logout failed. Please try again.');
             }
           },
         },

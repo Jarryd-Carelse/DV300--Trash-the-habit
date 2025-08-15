@@ -14,13 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { setLoginStatus } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const { login } = useAuth();
 
   // Twinning animations
   const formAnim = useRef(new Animated.Value(1)).current;
@@ -74,9 +75,9 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     
     try {
-      if (email === 'jarryd@mail.com' && password === '123456') {
-        await setLoginStatus(true);
-        
+      const result = await login(email, password);
+      
+      if (result.success) {
         // Success animation
         Animated.sequence([
           Animated.timing(successAnim, {
@@ -92,10 +93,11 @@ const LoginScreen = ({ navigation }) => {
         ]).start();
         
         setLoading(false);
-        navigation.replace('Home');
+        // Navigation will be handled by the AuthContext
+        // The user will be automatically redirected to the home screen
       } else {
         setLoading(false);
-        Alert.alert('Error', 'Invalid credentials. Use jarryd@mail.com / 123456');
+        Alert.alert('Error', result.error || 'Login failed. Please try again.');
       }
     } catch (error) {
       setLoading(false);

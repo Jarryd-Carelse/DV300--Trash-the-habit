@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
+import UserInfo from '../components/UserInfo';
 import { getUserSettings } from '../utils/storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -357,9 +358,12 @@ const HabitScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>
-          Welcome back, {user.name}!
-        </Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.welcomeText}>
+            Welcome back, {user.name}!
+          </Text>
+          <UserInfo />
+        </View>
         <Text style={styles.subtitle}>
           Your habits for today
         </Text>
@@ -470,11 +474,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
   welcomeText: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
     color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   subtitle: {
     ...FONTS.regular,

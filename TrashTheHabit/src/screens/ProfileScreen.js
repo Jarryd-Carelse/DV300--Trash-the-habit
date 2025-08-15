@@ -13,13 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProfileScreen = ({ navigation }) => {
+  const { user, logout } = useAuth();
   
   const [userProfile, setUserProfile] = useState({
     firstName: 'Jarryd',
     lastName: 'Carelse',
-    email: 'jarryd@mail.com',
+    email: user?.email || 'jarryd@mail.com',
     dateOfBirth: '1990-01-01',
     profileImage: null, 
   });
@@ -174,6 +176,34 @@ const ProfileScreen = ({ navigation }) => {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
       setIsLoadingImage(false);
     }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await logout();
+              if (result.success) {
+                // Logout successful, user will be automatically redirected to login screen
+                // by the AuthContext
+              } else {
+                Alert.alert('Error', result.error || 'Logout failed. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error during logout:', error);
+              Alert.alert('Error', 'Logout failed. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString) => {
@@ -348,6 +378,16 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
+
+        <View style={styles.logoutSection}>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out" size={20} color={COLORS.error} />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -515,6 +555,26 @@ const styles = StyleSheet.create({
     fontSize: SIZES.small,
     color: COLORS.textSecondary,
     textAlign: 'center',
+  },
+  logoutSection: {
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.error + '20',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+  },
+  logoutText: {
+    ...FONTS.medium,
+    fontSize: SIZES.font,
+    color: COLORS.error,
+    marginLeft: SPACING.sm,
   },
 });
 

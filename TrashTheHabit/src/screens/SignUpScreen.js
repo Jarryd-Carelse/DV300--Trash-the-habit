@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
 
 const SignUpScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -21,6 +22,7 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const { signup } = useAuth();
 
   // Twinning animations
   const formAnim = useRef(new Animated.Value(1)).current;
@@ -79,34 +81,46 @@ const SignUpScreen = ({ navigation }) => {
 
     setLoading(true);
     
-    setTimeout(() => {
+    try {
+      const result = await signup(email, password);
+      
+      if (result.success) {
+        // Success animation
+        Animated.sequence([
+          Animated.timing(successAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(successAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        
+        setLoading(false);
+        Alert.alert(
+          'Success',
+          'Account created successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigation will be handled by the AuthContext
+                // The user will be automatically redirected to the home screen
+              },
+            },
+          ]
+        );
+      } else {
+        setLoading(false);
+        Alert.alert('Error', result.error || 'Sign up failed. Please try again.');
+      }
+    } catch (error) {
       setLoading(false);
-      
-      // Success animation
-      Animated.sequence([
-        Animated.timing(successAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(successAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-      Alert.alert(
-        'Success',
-        'Account created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.replace('Home'),
-          },
-        ]
-      );
-    }, 1000);
+      Alert.alert('Error', 'Sign up failed. Please try again.');
+    }
   };
 
   const handleBackToLogin = () => {
