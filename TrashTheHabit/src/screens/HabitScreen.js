@@ -17,21 +17,17 @@ import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
 import UserInfo from '../components/UserInfo';
 import { getUserSettings } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserHabits, updateHabitStatus, deleteHabit } from '../config/firebase';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const HabitScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   
-  // Use dummy data as specified in requirements
-  const [habits, setHabits] = useState([
-    { id: 1, name: 'Vaping' },
-    { id: 2, name: 'Overeating' },
-    { id: 3, name: 'Doomscrolling' },
-    { id: 4, name: 'Procrastinating' },
-    { id: 5, name: 'Sleeping Late' },
-  ]);
-  
+  // Real data from Firestore
+  const [habits, setHabits] = useState([]);
   const [completed, setCompleted] = useState([]);
   const [trashed, setTrashed] = useState([]);
   const [draggedHabit, setDraggedHabit] = useState(null);
@@ -39,7 +35,6 @@ const HabitScreen = ({ navigation }) => {
   const [activeDropZone, setActiveDropZone] = useState(null);
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
   const [showTrashOverlay, setShowTrashOverlay] = useState(false);
-  const [user] = useState({ name: 'Jarryd' });
   const [currentRoute, setCurrentRoute] = useState('Home');
   const [settings, setSettings] = useState({
     navbarPosition: 'right',
@@ -48,7 +43,6 @@ const HabitScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
 
-
   const successAnim = useRef(new Animated.Value(0)).current;
   const trashAnim = useRef(new Animated.Value(0)).current;
   const dropZoneAnim = useRef(new Animated.Value(0)).current;
@@ -56,14 +50,22 @@ const HabitScreen = ({ navigation }) => {
   useEffect(() => {
     loadSettings();
     
-  
-    return () => {
-     
-      successAnim.setValue(0);
-      trashAnim.setValue(0);
-      dropZoneAnim.setValue(0);
-    };
-  }, []);
+    // Set up real-time listener for habits
+    if (user) {
+      const unsubscribe = getUserHabits((habitsData) => {
+        setHabits(habitsData.active || []);
+        setCompleted(habitsData.completed || []);
+        setTrashed(habitsData.trashed || []);
+      });
+      
+      return () => {
+        if (unsubscribe) unsubscribe();
+        successAnim.setValue(0);
+        trashAnim.setValue(0);
+        dropZoneAnim.setValue(0);
+      };
+    }
+  }, [user]);
 
   const loadSettings = async () => {
     try {
@@ -86,116 +88,70 @@ const HabitScreen = ({ navigation }) => {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt, gestureState) => {
+        console.log('PanResponder granted for habit:', habit.name);
         setDraggedHabit(habit);
         setActiveDropZone(null);
         
-       
         dragPosition.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (evt, gestureState) => {
-       
         dragPosition.setValue({ 
           x: gestureState.dx, 
           y: gestureState.dy 
         });
         
-       
-        const dropZoneY = screenHeight - 200;
-        const leftZoneX = 20;
-        const rightZoneX = screenWidth / 2 + 20;
-        const zoneWidth = (screenWidth - 80) / 2;
-        
-       
-        if (gestureState.moveY > dropZoneY - 100) { 
-        
-          if (gestureState.moveX > leftZoneX - 20 && gestureState.moveX < leftZoneX + zoneWidth + 20) {
+        // Check if habit is over a drop zone
+        const dropZoneY = screenHeight - 200; // Approximate position of drop zones
+        if (gestureState.dy > dropZoneY) {
+          if (gestureState.dx < screenWidth / 2) {
             if (activeDropZone !== 'complete') {
+              console.log('Hovering over complete zone');
               setActiveDropZone('complete');
-              Animated.spring(dropZoneAnim, {
-                toValue: 1,
-                tension: 100,
-                friction: 8,
-                useNativeDriver: true,
-              }).start();
             }
-          } 
-        
-          else if (gestureState.moveX > rightZoneX - 20 && gestureState.moveX < rightZoneX + zoneWidth + 20) {
+          } else {
             if (activeDropZone !== 'trash') {
+              console.log('Hovering over trash zone');
               setActiveDropZone('trash');
-              Animated.spring(dropZoneAnim, {
-                toValue: 1,
-                tension: 100,
-                friction: 8,
-                useNativeDriver: true,
-              }).start();
-            }
-          } 
-          
-          else {
-            if (activeDropZone !== null) {
-              setActiveDropZone(null);
-              Animated.spring(dropZoneAnim, {
-                toValue: 0,
-                tension: 100,
-                friction: 8,
-                useNativeDriver: true,
-              }).start();
             }
           }
         } else {
-          
           if (activeDropZone !== null) {
+            console.log('Not hovering over any zone');
             setActiveDropZone(null);
-            Animated.spring(dropZoneAnim, {
-              toValue: 0,
-              tension: 100,
-              friction: 8,
-              useNativeDriver: true,
-            }).start();
           }
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
+        const dropZoneY = screenHeight - 200;
         
-        if (draggedHabit && activeDropZone) {
-          handleDrop(activeDropZone, draggedHabit);
+        if (gestureState.dy > dropZoneY) {
+          if (gestureState.dx < screenWidth / 2) {
+            console.log('Dropping habit in complete zone:', habit.name);
+            handleHabitDrop(habit, 'complete');
+          } else {
+            console.log('Dropping habit in trash zone:', habit.name);
+            handleHabitDrop(habit, 'trash');
+          }
+        } else {
+          console.log('Habit dropped outside zones, returning to original position');
         }
         
-        
-        Animated.spring(dropZoneAnim, {
-          toValue: 0,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }).start();
-        
-        
-        Animated.spring(dragPosition, {
-          toValue: { x: 0, y: 0 },
-          tension: 100,
-          friction: 8,
-          useNativeDriver: false,
-        }).start(() => {
-          setDraggedHabit(null);
-          setActiveDropZone(null);
-        });
+        setDraggedHabit(null);
+        setActiveDropZone(null);
+        dragPosition.setValue({ x: 0, y: 0 });
       },
     });
-  }, [activeDropZone, handleDrop]);
+  }, [activeDropZone]);
 
-  const handleDrop = useCallback((zoneType, habit) => {
-    console.log('handleDrop called with:', zoneType, habit.name);
-    
+  const handleHabitDrop = async (habit, zoneType) => {
     if (zoneType === 'complete') {
       console.log('Starting success animation');
       setShowSuccessOverlay(true);
       
-      
       const successSequence = Animated.sequence([
         Animated.timing(successAnim, {
           toValue: 1,
-          duration: 400,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.delay(1200),
@@ -211,13 +167,18 @@ const HabitScreen = ({ navigation }) => {
         successAnim.setValue(0);
       });
 
-      setCompleted(prev => [...prev, { ...habit, completedAt: new Date() }]);
-      setHabits(prev => prev.filter(h => h.id !== habit.id));
+      // Update habit status in Firestore
+      const result = await updateHabitStatus(habit.id, 'completed', {
+        completedAt: new Date()
+      });
+      
+      if (!result.success) {
+        Alert.alert('Error', 'Failed to update habit status');
+      }
     } else if (zoneType === 'trash') {
       console.log('Starting trash animation');
       setShowTrashOverlay(true);
       
-    
       const trashSequence = Animated.sequence([
         Animated.timing(trashAnim, {
           toValue: 1,
@@ -237,10 +198,53 @@ const HabitScreen = ({ navigation }) => {
         trashAnim.setValue(0);
       });
 
-      setTrashed(prev => [...prev, { ...habit, trashedAt: new Date() }]);
-      setHabits(prev => prev.filter(h => h.id !== habit.id));
+      // Update habit status in Firestore
+      const result = await updateHabitStatus(habit.id, 'trashed', {
+        trashedAt: new Date()
+      });
+      
+      if (!result.success) {
+        Alert.alert('Error', 'Failed to update habit status');
+      }
     }
-  }, [successAnim, trashAnim]);
+  };
+
+  const handleDeleteHabit = async (habitId) => {
+    // Prevent deleting a habit that's currently being dragged
+    if (draggedHabit && draggedHabit.id === habitId) {
+      Alert.alert('Cannot Delete', 'Please finish dragging the habit before deleting it.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Habit',
+      'Are you sure you want to delete this habit? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await deleteHabit(habitId);
+              if (result.success) {
+                Alert.alert('Success', 'Habit deleted successfully!');
+                // The habit will be automatically removed from the list via the Firestore listener
+              } else {
+                Alert.alert('Error', result.error || 'Failed to delete habit');
+              }
+            } catch (error) {
+              console.error('Error deleting habit:', error);
+              Alert.alert('Error', 'Failed to delete habit. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderHabitCard = useCallback((habit) => {
     const isDragging = draggedHabit?.id === habit.id;
@@ -279,7 +283,26 @@ const HabitScreen = ({ navigation }) => {
           
           <View style={styles.habitInfo}>
             <Text style={styles.habitName}>{habit.name}</Text>
+            {habit.description && (
+              <Text style={styles.habitDescription}>{habit.description}</Text>
+            )}
           </View>
+          
+          <TouchableOpacity
+            style={[
+              styles.deleteButton,
+              draggedHabit?.id === habit.id && styles.deleteButtonDisabled
+            ]}
+            onPress={() => handleDeleteHabit(habit.id)}
+            activeOpacity={0.7}
+            disabled={draggedHabit?.id === habit.id}
+          >
+            <Ionicons 
+              name="trash" 
+              size={20} 
+              color={draggedHabit?.id === habit.id ? COLORS.gray : COLORS.error} 
+            />
+          </TouchableOpacity>
         </View>
       </Animated.View>
     );
@@ -289,26 +312,24 @@ const HabitScreen = ({ navigation }) => {
     const isComplete = type === 'complete';
     const isHighlighted = activeDropZone === type;
     
-   
     const dropZoneScale = dropZoneAnim.interpolate({
       inputRange: [0, 1],
       outputRange: [1, 0.95],
     });
 
-   
     const getHighlightStyle = () => {
       if (activeDropZone === type) {
         if (isComplete) {
           return {
+            backgroundColor: COLORS.success + '40',
             borderColor: COLORS.success,
-            borderWidth: 3,
-            borderStyle: 'solid',
+            transform: [{ scale: dropZoneScale }],
           };
         } else {
           return {
-            borderColor: COLORS.accent,
-            borderWidth: 3,
-            borderStyle: 'solid',
+            backgroundColor: COLORS.error + '40',
+            borderColor: COLORS.error,
+            transform: [{ scale: dropZoneScale }],
           };
         }
       }
@@ -322,32 +343,24 @@ const HabitScreen = ({ navigation }) => {
           styles.dropZone,
           isComplete ? styles.completeZone : styles.trashZone,
           getHighlightStyle(),
-          {
-            transform: [{ scale: isHighlighted ? dropZoneScale : 1 }]
-          }
         ]}
       >
-        <Ionicons
-          name={isComplete ? 'checkmark-circle' : 'trash'}
-          size={32}
-          color={isComplete ? COLORS.success : COLORS.accent}
-        />
-        <Text style={[
-          styles.dropZoneText,
-          { color: isComplete ? COLORS.success : COLORS.accent }
-        ]}>
-          {isComplete ? 'Complete' : 'Trash'}
-        </Text>
+        <View style={styles.dropZoneContent}>
+          <Ionicons
+            name={isComplete ? "checkmark-circle" : "trash"}
+            size={40}
+            color={isComplete ? COLORS.success : COLORS.error}
+          />
+          <Text style={styles.dropZoneTitle}>
+            {isComplete ? "Complete" : "Trash"}
+          </Text>
+          <Text style={styles.dropZoneSubtitle}>
+            {isComplete ? "Drop here to complete" : "Drop here to trash"}
+          </Text>
+        </View>
+        
         {isHighlighted && (
-          <Animated.View 
-            style={[
-              styles.dropIndicator,
-              { 
-                opacity: dropZoneAnim,
-                backgroundColor: isComplete ? COLORS.success : COLORS.accent
-              }
-            ]}
-          >
+          <Animated.View style={styles.dropIndicator}>
             <Text style={styles.dropIndicatorText}>Drop here!</Text>
           </Animated.View>
         )}
@@ -360,7 +373,7 @@ const HabitScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.welcomeText}>
-            Welcome back, {user.name}!
+            Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'User'}!
           </Text>
           <UserInfo />
         </View>
@@ -377,10 +390,17 @@ const HabitScreen = ({ navigation }) => {
       >
         {habits.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No habits left. You crushed it!</Text>
+            <Text style={styles.emptyText}>No habits to track today!</Text>
             <Text style={styles.emptySubtext}>
-              Completed: {completed.length} | Trashed: {trashed.length}
+              Tap the + button to add your first habit
             </Text>
+            <TouchableOpacity 
+              style={styles.addFirstHabitButton}
+              onPress={() => navigation.navigate('AddHabit')}
+            >
+              <Ionicons name="add" size={24} color={COLORS.white} />
+              <Text style={styles.addFirstHabitText}>Add Habit</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           habits.map(renderHabitCard)
@@ -535,6 +555,25 @@ const styles = StyleSheet.create({
     fontSize: SIZES.large,
     color: COLORS.text,
   },
+  habitDescription: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  deleteButton: {
+    padding: SPACING.sm,
+    marginLeft: SPACING.md,
+    backgroundColor: COLORS.error + '20',
+    borderRadius: SIZES.radius,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -566,6 +605,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     paddingBottom: SPACING.lg,
+    elevation: 10,
   },
   dropZone: {
     flex: 1,
@@ -576,7 +616,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: SPACING.sm,
     minHeight: 120,
-    borderWidth: 2,
+    borderWidth: 3,
     borderStyle: 'dashed',
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 4 },
@@ -586,14 +626,27 @@ const styles = StyleSheet.create({
   },
   completeZone: {
     borderColor: COLORS.success,
+    backgroundColor: COLORS.success + '10',
   },
   trashZone: {
-    borderColor: COLORS.accent,
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.error + '10',
   },
-  dropZoneText: {
+  dropZoneContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropZoneTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
     marginTop: SPACING.sm,
+    textAlign: 'center',
+  },
+  dropZoneSubtitle: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
     textAlign: 'center',
   },
   dropIndicator: {
@@ -677,6 +730,21 @@ const styles = StyleSheet.create({
     fontSize: SIZES.font,
     color: COLORS.white,
     textAlign: 'center',
+  },
+  addFirstHabitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: SIZES.radius,
+    marginTop: SPACING.lg,
+  },
+  addFirstHabitText: {
+    ...FONTS.medium,
+    fontSize: SIZES.font,
+    color: COLORS.white,
+    marginLeft: SPACING.sm,
   },
 });
 

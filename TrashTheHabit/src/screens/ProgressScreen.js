@@ -11,13 +11,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getProgressData, getUserSettings, getHabitsData } from '../utils/storage';
-import { dummyProgress } from '../utils/dummyData';
+import { getUserSettings } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserHabits } from '../config/firebase';
 
 const ProgressScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   
-  const [progress, setProgress] = useState(null);
+  const [progress, setProgress] = useState({
+    totalHabits: 0,
+    completedHabits: 0,
+    trashedHabits: 0,
+    successRate: 0,
+    currentStreak: 0,
+    longestStreak: 0
+  });
   const [currentRoute, setCurrentRoute] = useState('Progress');
   const [settings, setSettings] = useState({
     navbarPosition: 'right',
@@ -53,7 +62,7 @@ const ProgressScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    if (progress) {
+    if (progress && progress.totalHabits > 0) {
       // Animate progress bars
       Animated.timing(progressAnim, {
         toValue: 1,
@@ -65,17 +74,38 @@ const ProgressScreen = ({ navigation }) => {
 
   const loadProgress = async () => {
     try {
-      const progressData = await getProgressData();
-      if (progressData) {
-        setProgress(progressData);
-      } else {
-        // Use dummy data if no progress data exists
-        setProgress(dummyProgress);
+      if (user) {
+        const unsubscribe = getUserHabits((habitsData) => {
+          const activeHabits = habitsData.active || [];
+          const completedHabits = habitsData.completed || [];
+          const trashedHabits = habitsData.trashed || [];
+          
+          const totalHabits = activeHabits.length + completedHabits.length + trashedHabits.length;
+          const successRate = totalHabits > 0 ? Math.round((completedHabits.length / totalHabits) * 100) : 0;
+          
+          // Calculate streaks (simplified - you can enhance this logic)
+          const currentStreak = completedHabits.length > 0 ? 1 : 0;
+          const longestStreak = Math.max(currentStreak, completedHabits.length);
+          
+          setProgress({
+            totalHabits,
+            completedHabits: completedHabits.length,
+            trashedHabits: trashedHabits.length,
+            successRate,
+            currentStreak,
+            longestStreak
+          });
+          
+          setHasLoaded(true);
+        });
+        
+        return () => {
+          if (unsubscribe) unsubscribe();
+        };
       }
     } catch (error) {
       console.error('Error loading progress:', error);
-      // Fallback to dummy data
-      setProgress(dummyProgress);
+      setHasLoaded(true);
     }
   };
 
@@ -227,14 +257,14 @@ const ProgressScreen = ({ navigation }) => {
         <View style={styles.statsGrid}>
           <StatCard
             title="Completed This Week"
-            value={progress.completedThisWeek || 0}
+            value={progress.completedHabits || 0}
             icon="checkmark-circle"
             color={COLORS.success}
             index={0}
           />
           <StatCard
             title="Trashed This Week"
-            value={progress.trashedThisWeek || 0}
+            value={progress.trashedHabits || 0}
             icon="trash"
             color={COLORS.accent}
             index={1}
@@ -259,13 +289,13 @@ const ProgressScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Weekly Progress</Text>
           <ProgressBar
             label="Completed"
-            value={progress.completedThisWeek || 0}
+            value={progress.completedHabits || 0}
             maxValue={progress.totalHabits || 1}
             color={COLORS.success}
           />
           <ProgressBar
             label="Trashed"
-            value={progress.trashedThisWeek || 0}
+            value={progress.trashedHabits || 0}
             maxValue={progress.totalHabits || 1}
             color={COLORS.accent}
           />

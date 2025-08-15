@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,15 +14,25 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import * as Firebase from '../config/firebase';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
   
+  // Debug: Check what's available
+  useEffect(() => {
+    console.log('Firebase functions available:', {
+      getUserProfile: typeof Firebase.getUserProfile,
+      updateUserProfile: typeof Firebase.updateUserProfile,
+      auth: typeof Firebase.auth
+    });
+  }, []);
+  
   const [userProfile, setUserProfile] = useState({
-    firstName: 'Jarryd',
-    lastName: 'Carelse',
-    email: user?.email || 'jarryd@mail.com',
-    dateOfBirth: '1990-01-01',
+    firstName: '',
+    lastName: '',
+    email: user?.email || '',
+    dateOfBirth: '',
     profileImage: null, 
   });
 
@@ -33,24 +43,87 @@ const ProfileScreen = ({ navigation }) => {
     dateOfBirth: '',
   });
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleEditProfile = () => {
+  // Load user profile from Firestore when component mounts
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Check if function exists
+      if (typeof Firebase.getUserProfile !== 'function') {
+        console.error('getUserProfile function not available');
+        setIsLoading(false);
+        return;
+      }
+      
+      const profile = await Firebase.getUserProfile();
+      if (profile) {
+        setUserProfile(prev => ({
+          ...prev,
+          ...profile,
+          email: user?.email || prev.email
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditProfile = async () => {
     if (isEditing) {
-      
-      setUserProfile(prev => ({
-        ...prev,
-        firstName: editData.firstName || prev.firstName,
-        lastName: editData.lastName || prev.lastName,
-        dateOfBirth: editData.dateOfBirth || prev.dateOfBirth,
-      }));
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully!');
+      // Validate that all required fields are filled
+      if (!editData.firstName.trim() || !editData.lastName.trim() || !editData.dateOfBirth.trim()) {
+        Alert.alert('Error', 'Please fill in all fields (First Name, Last Name, and Date of Birth)');
+        return;
+      }
+
+      try {
+        // Check if function exists
+        if (typeof Firebase.updateUserProfile !== 'function') {
+          console.error('updateUserProfile function not available');
+          Alert.alert('Error', 'Profile update function not available');
+          return;
+        }
+        
+        // Save to Firestore
+        const result = await Firebase.updateUserProfile({
+          firstName: editData.firstName.trim(),
+          lastName: editData.lastName.trim(),
+          dateOfBirth: editData.dateOfBirth.trim()
+        });
+
+        if (result.success) {
+          // Update local state
+          setUserProfile(prev => ({
+            ...prev,
+            firstName: editData.firstName.trim(),
+            lastName: editData.lastName.trim(),
+            dateOfBirth: editData.dateOfBirth.trim()
+          }));
+          setIsEditing(false);
+          Alert.alert('Success', 'Profile updated successfully!');
+        } else {
+          Alert.alert('Error', result.error || 'Failed to update profile');
+        }
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
     } else {
-      
+      // Start editing - populate edit data with current values
       setEditData({
-        firstName: userProfile.firstName,
-        lastName: userProfile.lastName,
-        dateOfBirth: userProfile.dateOfBirth,
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        dateOfBirth: userProfile.dateOfBirth || '',
       });
       setIsEditing(true);
     }
@@ -253,131 +326,163 @@ const ProfileScreen = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileSection}>
-          <View style={styles.profileImageContainer}>
-            {userProfile.profileImage ? (
-              <Image 
-                source={{ uri: userProfile.profileImage }} 
-                style={styles.profileImage}
-              />
-            ) : (
-              <View style={styles.defaultAvatar}>
-                <Ionicons name="person" size={60} color={COLORS.white} />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.profileSection}>
+              <View style={styles.profileImageContainer}>
+                {userProfile.profileImage ? (
+                  <Image 
+                    source={{ uri: userProfile.profileImage }} 
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={styles.defaultAvatar}>
+                    <Ionicons name="person" size={60} color={COLORS.white} />
+                  </View>
+                )}
+                <TouchableOpacity 
+                  style={[styles.changePhotoButton, isLoadingImage && styles.changePhotoButtonDisabled]} 
+                  onPress={handleChangePhoto}
+                  disabled={isLoadingImage}
+                >
+                  {isLoadingImage ? (
+                    <Ionicons name="hourglass" size={20} color={COLORS.white} />
+                  ) : (
+                    <Ionicons name="camera" size={20} color={COLORS.white} />
+                  )}
+                </TouchableOpacity>
               </View>
-            )}
-            <TouchableOpacity 
-              style={[styles.changePhotoButton, isLoadingImage && styles.changePhotoButtonDisabled]} 
-              onPress={handleChangePhoto}
-              disabled={isLoadingImage}
-            >
-              {isLoadingImage ? (
-                <Ionicons name="hourglass" size={20} color={COLORS.white} />
-              ) : (
-                <Ionicons name="camera" size={20} color={COLORS.white} />
-              )}
-            </TouchableOpacity>
-          </View>
-          
-          <Text style={styles.userName}>
-            {userProfile.firstName} {userProfile.lastName}
-          </Text>
-          <Text style={styles.userEmail}>{userProfile.email}</Text>
-        </View>
-
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="person" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>First Name</Text>
-              {isEditing ? (
-                <TextInput
-                  style={styles.editInput}
-                  value={editData.firstName}
-                  onChangeText={(text) => setEditData(prev => ({ ...prev, firstName: text }))}
-                  placeholder="Enter first name"
-                  placeholderTextColor={COLORS.textSecondary}
-                />
-              ) : (
-                <Text style={styles.infoValue}>{userProfile.firstName}</Text>
+              
+              <Text style={styles.userName}>
+                {userProfile.firstName && userProfile.lastName 
+                  ? `${userProfile.firstName} ${userProfile.lastName}`
+                  : 'Complete Your Profile'
+                }
+              </Text>
+              <Text style={styles.userEmail}>{userProfile.email}</Text>
+              {(!userProfile.firstName || !userProfile.lastName || !userProfile.dateOfBirth) && (
+                <Text style={styles.profileIncomplete}>
+                  Please fill in your profile information
+                </Text>
               )}
             </View>
-          </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="person" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Last Name</Text>
-              {isEditing ? (
-                <TextInput
-                  style={styles.editInput}
-                  value={editData.lastName}
-                  onChangeText={(text) => setEditData(prev => ({ ...prev, lastName: text }))}
-                  placeholder="Enter last name"
-                  placeholderTextColor={COLORS.textSecondary}
-                />
-              ) : (
-                <Text style={styles.infoValue}>{userProfile.lastName}</Text>
-              )}
-            </View>
-          </View>
+            <View style={styles.infoSection}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+              
+              <View style={styles.infoItem}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="person" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>First Name</Text>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.editInput}
+                      value={editData.firstName}
+                      onChangeText={(text) => setEditData(prev => ({ ...prev, firstName: text }))}
+                      placeholder="Enter first name"
+                      placeholderTextColor={COLORS.textSecondary}
+                    />
+                  ) : (
+                    <Text style={[
+                      styles.infoValue,
+                      !userProfile.firstName && styles.emptyField
+                    ]}>
+                      {userProfile.firstName || 'Not set'}
+                    </Text>
+                  )}
+                </View>
+              </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="mail" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{userProfile.email}</Text>
-            </View>
-          </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="person" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Last Name</Text>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.editInput}
+                      value={editData.lastName}
+                      onChangeText={(text) => setEditData(prev => ({ ...prev, lastName: text }))}
+                      placeholder="Enter last name"
+                      placeholderTextColor={COLORS.textSecondary}
+                    />
+                  ) : (
+                    <Text style={[
+                      styles.infoValue,
+                      !userProfile.lastName && styles.emptyField
+                    ]}>
+                      {userProfile.lastName || 'Not set'}
+                    </Text>
+                  )}
+                </View>
+              </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="calendar" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Date of Birth</Text>
-              {isEditing ? (
-                <TextInput
-                  style={styles.editInput}
-                  value={editData.dateOfBirth}
-                  onChangeText={(text) => setEditData(prev => ({ ...prev, dateOfBirth: text }))}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={COLORS.textSecondary}
-                />
-              ) : (
-                <Text style={styles.infoValue}>{formatDate(userProfile.dateOfBirth)}</Text>
-              )}
-            </View>
-          </View>
-        </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="mail" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{userProfile.email}</Text>
+                </View>
+              </View>
 
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Statistics</Text>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>15</Text>
-              <Text style={styles.statLabel}>Habits Tracked</Text>
+              <View style={styles.infoItem}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="calendar" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Date of Birth</Text>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.editInput}
+                      value={editData.dateOfBirth}
+                      onChangeText={(text) => setEditData(prev => ({ ...prev, dateOfBirth: text }))}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={COLORS.textSecondary}
+                    />
+                  ) : (
+                    <Text style={[
+                      styles.infoValue,
+                      !userProfile.dateOfBirth && styles.emptyField
+                    ]}>
+                      {userProfile.dateOfBirth ? formatDate(userProfile.dateOfBirth) : 'Not set'}
+                    </Text>
+                  )}
+                </View>
+              </View>
             </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>8</Text>
-              <Text style={styles.statLabel}>Completed</Text>
+
+            <View style={styles.statsSection}>
+              <Text style={styles.sectionTitle}>Statistics</Text>
+              
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>15</Text>
+                  <Text style={styles.statLabel}>Habits Tracked</Text>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>8</Text>
+                  <Text style={styles.statLabel}>Completed</Text>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>7</Text>
+                  <Text style={styles.statLabel}>Trashed</Text>
+                </View>
+              </View>
             </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>7</Text>
-              <Text style={styles.statLabel}>Trashed</Text>
-            </View>
-          </View>
-        </View>
+          </>
+        )}
+      </ScrollView>
 
         <View style={styles.logoutSection}>
           <TouchableOpacity 
@@ -388,7 +493,6 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -478,6 +582,13 @@ const styles = StyleSheet.create({
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+  },
+  profileIncomplete: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.warning || COLORS.accent,
+    marginTop: SPACING.xs,
+    textAlign: 'center',
   },
   infoSection: {
     padding: SPACING.lg,
@@ -575,6 +686,21 @@ const styles = StyleSheet.create({
     fontSize: SIZES.font,
     color: COLORS.error,
     marginLeft: SPACING.sm,
+  },
+  emptyField: {
+    color: COLORS.textSecondary,
+    fontStyle: 'italic',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xxl,
+  },
+  loadingText: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
   },
 });
 

@@ -14,10 +14,13 @@ import CustomButton from '../components/CustomButton';
 import FloatingNavbar from '../components/FloatingNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getHabitsData, saveHabitsData, getUserSettings } from '../utils/storage';
+import { getUserSettings } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { createHabit, getUserHabits, deleteHabit } from '../config/firebase';
 
 const AddHabitScreen = ({ navigation }) => {
   const [habitName, setHabitName] = useState('');
+  const [habitDescription, setHabitDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -28,6 +31,7 @@ const AddHabitScreen = ({ navigation }) => {
     hapticsEnabled: true,
     notificationsEnabled: true,
   });
+  const { user } = useAuth();
 
   // Predefined habit categories
   const habitCategories = [
@@ -52,7 +56,6 @@ const AddHabitScreen = ({ navigation }) => {
     loadHabits();
     loadSettings();
     
-   
     Animated.parallel([
       Animated.spring(headerAnim, {
         toValue: 1,
@@ -71,9 +74,14 @@ const AddHabitScreen = ({ navigation }) => {
 
   const loadHabits = async () => {
     try {
-      const habitsData = await getHabitsData();
-      if (habitsData) {
-        setHabits(habitsData.filter(habit => habit.isActive));
+      if (user) {
+        const unsubscribe = getUserHabits((habitsData) => {
+          setHabits(habitsData.active || []);
+        });
+        
+        return () => {
+          if (unsubscribe) unsubscribe();
+        };
       }
     } catch (error) {
       console.error('Error loading habits:', error);
@@ -97,112 +105,116 @@ const AddHabitScreen = ({ navigation }) => {
   };
 
   const handleAddHabit = async () => {
-    if (!selectedCategory) {
-      Alert.alert('Error', 'Please select a category first');
+    if (!habitName.trim()) {
+      Alert.alert('Error', 'Please enter a habit name');
       return;
     }
-    
-    if (!habitName.trim()) {
-      // Shake animation for validation error
-      Animated.sequence([
-        Animated.timing(formAnim, {
-          toValue: 0.95,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(formAnim, {
-          toValue: 1.05,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(formAnim, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-      Alert.alert('Error', 'Please enter a habit name');
+
+    if (!selectedCategory) {
+      Alert.alert('Error', 'Please select a category');
       return;
     }
 
     setLoading(true);
 
     try {
-      const newHabit = {
-        id: Date.now().toString(),
+      const habitData = {
         name: habitName.trim(),
+        description: habitDescription.trim(),
         category: selectedCategory,
-        createdAt: new Date().toISOString(),
-        completedCount: 0,
-        trashedCount: 0,
-        isActive: true,
+        isActive: true
       };
 
-      const updatedHabits = [...habits, newHabit];
-      setHabits(updatedHabits);
-      await saveHabitsData(updatedHabits);
+      const result = await createHabit(habitData);
+      
+      if (result.success) {
+        // Success animation
+        Animated.sequence([
+          Animated.timing(successAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.delay(1000),
+          Animated.timing(successAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
 
-      setHabitName('');
-      setSelectedCategory('');
-      
-      // Success animation
-      Animated.sequence([
-        Animated.timing(successAnim, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.delay(1500), 
-        Animated.timing(successAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-    
+        // Reset form
+        setHabitName('');
+        setHabitDescription('');
+        setSelectedCategory('');
+        
+        // Navigate back to home
+        setTimeout(() => {
+          navigation.navigate('Home');
+        }, 1500);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to create habit');
+      }
     } catch (error) {
-      console.error('Error adding habit:', error);
-      Alert.alert('Error', 'Failed to add habit');
+      Alert.alert('Error', 'Failed to create habit. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    
+    // Category selection animation
+    Animated.sequence([
+      Animated.timing(categoryAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(categoryAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handleDeleteHabit = async (habitId) => {
     Alert.alert(
       'Delete Habit',
-      'Are you sure you want to delete this habit?',
+      'Are you sure you want to delete this habit? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
-              const updatedHabits = habits.filter(h => h.id !== habitId);
-              setHabits(updatedHabits);
-              await saveHabitsData(updatedHabits);
+              // First delete from Firestore database
+              const result = await deleteHabit(habitId);
               
-              // Delete animation
-              Animated.sequence([
+              if (result.success) {
+                // Animate deletion after successful database deletion
                 Animated.timing(deleteAnim, {
-                  toValue: 0.8,
-                  duration: 200,
+                  toValue: 0,
+                  duration: 300,
                   useNativeDriver: true,
-                }),
-                Animated.timing(deleteAnim, {
-                  toValue: 1,
-                  duration: 200,
-                  useNativeDriver: true,
-                }),
-              ]).start();
+                }).start(() => {
+                  // Remove from local state
+                  setHabits(prev => prev.filter(h => h.id !== habitId));
+                  deleteAnim.setValue(1);
+                });
+                
+                Alert.alert('Success', 'Habit deleted successfully');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to delete habit from database');
+              }
             } catch (error) {
               console.error('Error deleting habit:', error);
-              Alert.alert('Error', 'Failed to delete habit');
+              Alert.alert('Error', 'Failed to delete habit. Please try again.');
             }
-          }
+          },
         },
       ]
     );
@@ -282,7 +294,7 @@ const AddHabitScreen = ({ navigation }) => {
                     styles.categoryButton,
                     selectedCategory === category && styles.selectedCategoryButton
                   ]}
-                  onPress={() => setSelectedCategory(category)}
+                  onPress={() => handleCategorySelect(category)}
                   activeOpacity={0.7}
                 >
                   <Text style={[
@@ -303,6 +315,17 @@ const AddHabitScreen = ({ navigation }) => {
             onChangeText={setHabitName}
             style={styles.input}
             editable={!!selectedCategory}
+          />
+
+          <CustomInput
+            label="Description (Optional)"
+            placeholder="Add a description to help you remember..."
+            value={habitDescription}
+            onChangeText={setHabitDescription}
+            style={styles.input}
+            editable={!!selectedCategory}
+            multiline
+            numberOfLines={3}
           />
           
           <CustomButton
