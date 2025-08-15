@@ -6,6 +6,7 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,54 @@ import { getUserSettings } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserHabits } from '../config/firebase';
 import { PieChart, LineChart, BarChart } from 'react-native-chart-kit';
+
+
+
+const DraggableStatCard = ({ card, index, value, onReorder, draggedIndex, onDragStart, onDragEnd, onDrop }) => {
+  const [isPressed, setIsPressed] = useState(false);
+  const isDragging = draggedIndex === index;
+
+  const handleLongPress = () => {
+    setIsPressed(true);
+    onDragStart(index);
+  };
+
+  const handlePressOut = () => {
+    setIsPressed(false);
+    onDragEnd();
+  };
+
+  const handlePress = () => {
+    if (draggedIndex !== null && draggedIndex !== index) {
+      // Drop the dragged card here
+      onDrop(draggedIndex, index);
+    } else if (draggedIndex === null) {
+      // Normal tap behavior when not dragging
+      const nextIndex = (index + 1) % 4;
+      onReorder(index, nextIndex);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.statCard,
+        isPressed && styles.statCardPressed,
+        isDragging && styles.statCardDragging
+      ]}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      onPressOut={handlePressOut}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: card.color + '20' }]}>
+        <Ionicons name={card.icon} size={24} color={card.color} />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statTitle}>{card.title}</Text>
+    </TouchableOpacity>
+  );
+};
 
 const ProgressScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -38,6 +87,14 @@ const ProgressScreen = ({ navigation }) => {
     notificationsEnabled: true,
   });
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [quoteOfTheDay, setQuoteOfTheDay] = useState('');
+  const [statCardsOrder, setStatCardsOrder] = useState([
+    { id: 'completed', title: 'Completed This Week', icon: 'checkmark-circle', color: COLORS.success, key: 0 },
+    { id: 'failed', title: 'Failed This Week', icon: 'close-circle', color: COLORS.error, key: 1 },
+    { id: 'streak', title: 'Current Streak', icon: 'flame', color: COLORS.warning, key: 2 },
+    { id: 'total', title: 'Total Habits', icon: 'list', color: COLORS.primary, key: 3 },
+  ]);
+  const [draggedIndex, setDraggedIndex] = useState(null);
 
   // Twinning animations
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -47,6 +104,7 @@ const ProgressScreen = ({ navigation }) => {
   useEffect(() => {
     loadProgress();
     loadSettings();
+    loadQuoteOfTheDay();
     
     // Start entrance animations immediately
     Animated.parallel([
@@ -284,6 +342,61 @@ const ProgressScreen = ({ navigation }) => {
     }
   };
 
+  const getCardValue = (cardId, progress) => {
+    switch (cardId) {
+      case 'completed': return progress.completedHabits || 0;
+      case 'failed': return progress.failedHabits || 0;
+      case 'streak': return progress.currentStreak || 0;
+      case 'total': return progress.totalHabits || 0;
+      default: return 0;
+    }
+  };
+
+  const handleReorder = (fromIndex, toIndex) => {
+    const newOrder = [...statCardsOrder];
+    const [movedCard] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, movedCard);
+    setStatCardsOrder(newOrder);
+  };
+
+  const handleDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const handleDrop = (fromIndex, toIndex) => {
+    if (fromIndex !== toIndex) {
+      const newOrder = [...statCardsOrder];
+      const [movedCard] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, movedCard);
+      setStatCardsOrder(newOrder);
+    }
+    setDraggedIndex(null);
+  };
+
+  const loadQuoteOfTheDay = () => {
+    const quotes = [
+      "The only way to do great work is to love what you do. - Steve Jobs",
+      "Success is not final, failure is not fatal: it is the courage to continue that counts. - Winston Churchill",
+      "The future depends on what you do today. - Mahatma Gandhi",
+      "Small progress is still progress. Keep going!",
+      "Every expert was once a beginner. Don't be afraid to start.",
+      "Consistency is the key to success. Show up every day.",
+      "Your habits shape your future. Choose them wisely.",
+      "The journey of a thousand miles begins with one step. - Lao Tzu",
+      "Don't watch the clock; do what it does. Keep going. - Sam Levenson",
+      "Success is walking from failure to failure with no loss of enthusiasm. - Winston Churchill"
+    ];
+    
+    const today = new Date();
+    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+    const quoteIndex = dayOfYear % quotes.length;
+    setQuoteOfTheDay(quotes[quoteIndex]);
+  };
+
   const loadSettings = async () => {
     try {
       const userSettings = await getUserSettings();
@@ -300,66 +413,7 @@ const ProgressScreen = ({ navigation }) => {
     navigation.navigate(routeName);
   };
 
-  const StatCard = ({ title, value, icon, color, index }) => {
-    const cardAnim = useRef(new Animated.Value(0)).current;
-    const iconAnim = useRef(new Animated.Value(0)).current;
 
-    useEffect(() => {
-      // Staggered animation for stat cards
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.spring(cardAnim, {
-            toValue: 1,
-            tension: 50,
-            friction: 7,
-            useNativeDriver: true,
-          }),
-          Animated.timing(iconAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, index * 200);
-    }, []);
-
-    const iconScale = iconAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.5, 1],
-    });
-
-    return (
-      <Animated.View 
-        style={[
-          styles.statCard,
-          {
-            opacity: cardAnim,
-            transform: [
-              { scale: cardAnim },
-              { translateY: cardAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [50, 0],
-              })}
-            ]
-          }
-        ]}
-      >
-        <Animated.View 
-          style={[
-            styles.iconContainer, 
-            { 
-              backgroundColor: color + '20',
-              transform: [{ scale: iconScale }]
-            }
-          ]}
-        >
-          <Ionicons name={icon} size={24} color={color} />
-        </Animated.View>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-      </Animated.View>
-    );
-  };
 
 
 
@@ -395,8 +449,12 @@ const ProgressScreen = ({ navigation }) => {
           }
         ]}
       >
-        <Text style={styles.title}>Progress Dashboard</Text>
-        <Text style={styles.subtitle}>Track your habit-breaking success</Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.title}>Progress Dashboard</Text>
+            <Text style={styles.subtitle}>Track your habit-breaking success</Text>
+          </View>
+        </View>
       </Animated.View>
 
       <ScrollView 
@@ -404,35 +462,34 @@ const ProgressScreen = ({ navigation }) => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Quote of the Day */}
+        <Animated.View 
+          style={[
+            styles.quoteContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }]
+            }
+          ]}
+        >
+          <Text style={styles.quoteDecorator}>❝</Text>
+          <Text style={styles.quoteText}>{quoteOfTheDay}</Text>
+          <Text style={styles.quoteDecorator}>❞</Text>
+        </Animated.View>
         <View style={styles.statsGrid}>
-          <StatCard
-            title="Completed This Week"
-            value={progress.completedHabits || 0}
-            icon="checkmark-circle"
-            color={COLORS.success}
-            index={0}
-          />
-          <StatCard
-            title="Failed This Week"
-            value={progress.failedHabits || 0}
-            icon="close-circle"
-            color={COLORS.error}
-            index={1}
-          />
-          <StatCard
-            title="Current Streak"
-            value={progress.currentStreak || 0}
-            icon="flame"
-            color={COLORS.warning}
-            index={2}
-          />
-          <StatCard
-            title="Total Habits"
-            value={progress.totalHabits || 0}
-            icon="list"
-            color={COLORS.primary}
-            index={3}
-          />
+          {statCardsOrder.map((card, index) => (
+            <DraggableStatCard
+              key={card.key}
+              card={card}
+              index={index}
+              value={getCardValue(card.id, progress)}
+              onReorder={handleReorder}
+              draggedIndex={draggedIndex}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+            />
+          ))}
         </View>
 
         {/* Weekly Horizontal Bar Chart */}
@@ -526,11 +583,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  quoteContainer: {
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xs,
+    margin: SPACING.lg,
+    alignItems: 'center',
+  },
+  quoteText: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.white,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 28,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+    letterSpacing: 0.5,
+    marginVertical: SPACING.sm,
+  },
+  quoteDecorator: {
+    fontSize: SIZES.extraLarge,
+    color: COLORS.white,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
+    opacity: 0.8,
+  },
   header: {
     padding: SPACING.lg,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     ...FONTS.bold,
@@ -569,6 +658,22 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  statCardPressed: {
+    backgroundColor: COLORS.primary + '10',
+    borderColor: COLORS.primary,
+    transform: [{ scale: 0.95 }],
+  },
+  statCardDragging: {
+    backgroundColor: COLORS.primary + '20',
+    borderColor: COLORS.primary,
+    borderWidth: 2,
+    transform: [{ scale: 1.05 }],
+    elevation: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   iconContainer: {
     width: 50,
