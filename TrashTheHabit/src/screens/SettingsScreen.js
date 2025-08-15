@@ -346,25 +346,31 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   headerLeft: {
     flex: 1,
+    alignItems: 'center',
+    marginRight: -SPACING.xl,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
     color: COLORS.text,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   profileButton: {
-    padding: SPACING.sm,
+    paddingLeft: SPACING.xxs,
+    paddingRight: SPACING.xs,
+    paddingVertical: SPACING.sm,
   },
   content: {
     flex: 1,

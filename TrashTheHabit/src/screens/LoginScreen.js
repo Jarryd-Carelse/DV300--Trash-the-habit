@@ -97,11 +97,27 @@ const LoginScreen = ({ navigation }) => {
         // The user will be automatically redirected to the home screen
       } else {
         setLoading(false);
-        Alert.alert('Error', result.error || 'Login failed. Please try again.');
+        // Show user-friendly error message instead of Firebase error
+        let errorMessage = 'Login failed. Please try again.';
+        
+        if (result.error) {
+          // Map Firebase errors to user-friendly messages
+          if (result.error.includes('user-not-found') || result.error.includes('wrong-password')) {
+            errorMessage = 'Invalid email or password. Please check your details and try again.';
+          } else if (result.error.includes('too-many-requests')) {
+            errorMessage = 'Too many failed attempts. Please wait a moment before trying again.';
+          } else if (result.error.includes('network')) {
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+          } else if (result.error.includes('invalid-email')) {
+            errorMessage = 'Please enter a valid email address.';
+          }
+        }
+        
+        Alert.alert('Login Failed', errorMessage);
       }
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Login failed. Please try again.');
+      Alert.alert('Login Failed', 'Something went wrong. Please check your internet connection and try again.');
     }
   };
 

@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginBottom: SPACING.xs,
   },
   welcomeText: {
@@ -530,6 +530,7 @@ const styles = StyleSheet.create({
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   habitsList: {
     flex: 1,

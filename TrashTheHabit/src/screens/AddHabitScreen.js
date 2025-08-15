@@ -401,11 +401,13 @@ const styles = StyleSheet.create({
     fontSize: SIZES.extraLarge,
     color: COLORS.text,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   content: {
     flex: 1,
