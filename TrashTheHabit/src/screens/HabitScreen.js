@@ -86,71 +86,64 @@ const HabitScreen = ({ navigation }) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt, gestureState) => {
-        console.log('PanResponder grant:', { x0: gestureState.x0, y0: gestureState.y0 });
-        // Don't set initial position - keep card in place until actually moving
-        setDraggedHabit(habit);
-        setActiveDropZone(null);
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Calculate offset from the initial touch point for smooth movement
-        const offsetX = gestureState.dx;
-        const offsetY = gestureState.dy;
-        
-        dragPosition.setValue({ x: offsetX, y: offsetY });
-        
-        // Check if habit is over a drop zone with very forgiving detection
-        if (gestureState.moveY > screenHeight - 200) { // Check if near bottom area
-          // Add horizontal buffer zones for more forgiving detection
-          const leftBuffer = screenWidth * 0.4;  // 40% of screen width for complete zone
-          const rightBuffer = screenWidth * 0.6; // 60% of screen width for failed zone
+              onPanResponderGrant: (evt, gestureState) => {
+          console.log('PanResponder grant:', { x0: gestureState.x0, y0: gestureState.y0 });
+          setDraggedHabit(habit);
+          setActiveDropZone(null);
+        },
+              onPanResponderMove: (evt, gestureState) => {
+          const offsetX = gestureState.dx;
+          const offsetY = gestureState.dy;
           
-          if (gestureState.moveX < leftBuffer) {
-            if (activeDropZone !== 'complete') {
-              console.log('Hovering over complete zone');
-              setActiveDropZone('complete');
-            }
-          } else if (gestureState.moveX > rightBuffer) {
-            if (activeDropZone !== 'failed') {
-              console.log('Hovering over failed zone');
-              setActiveDropZone('failed');
+          dragPosition.setValue({ x: offsetX, y: offsetY });
+          
+          if (gestureState.moveY > screenHeight - 200) {
+            const leftBuffer = screenWidth * 0.4;
+            const rightBuffer = screenWidth * 0.6;
+          
+                      if (gestureState.moveX < leftBuffer) {
+              if (activeDropZone !== 'complete') {
+                console.log('Hovering over complete zone');
+                setActiveDropZone('complete');
+              }
+            } else if (gestureState.moveX > rightBuffer) {
+              if (activeDropZone !== 'failed') {
+                console.log('Hovering over failed zone');
+                setActiveDropZone('failed');
+              }
+            } else {
+              console.log('In middle area, keeping current zone');
             }
           } else {
-            // Middle area - keep current zone active if any
-            console.log('In middle area, keeping current zone');
+            if (activeDropZone !== null) {
+              console.log('Not hovering over any zone');
+              setActiveDropZone(null);
+            }
           }
-        } else {
-          if (activeDropZone !== null) {
-            console.log('Not hovering over any zone');
-            setActiveDropZone(null);
-          }
-        }
       },
-      onPanResponderRelease: (evt, gestureState) => {
-        console.log('PanResponder release:', { moveX: gestureState.moveX, moveY: gestureState.moveY });
-        
-        if (gestureState.moveY > screenHeight - 200) { // Check if near bottom area
-          // Use same forgiving horizontal detection as move detection
-          const leftBuffer = screenWidth * 0.4;  // 40% of screen width for complete zone
-          const rightBuffer = screenWidth * 0.6; // 60% of screen width for failed zone
+              onPanResponderRelease: (evt, gestureState) => {
+          console.log('PanResponder release:', { moveX: gestureState.moveX, moveY: gestureState.moveY });
           
-          if (gestureState.moveX < leftBuffer) {
-            console.log('Dropping habit in complete zone:', habit.name);
-            handleHabitDrop(habit, 'complete');
-          } else if (gestureState.moveX > rightBuffer) {
-            console.log('Dropping habit in failed zone:', habit.name);
-            handleHabitDrop(habit, 'failed');
+          if (gestureState.moveY > screenHeight - 200) {
+            const leftBuffer = screenWidth * 0.4;
+            const rightBuffer = screenWidth * 0.6;
+          
+                      if (gestureState.moveX < leftBuffer) {
+              console.log('Dropping habit in complete zone:', habit.name);
+              handleHabitDrop(habit, 'complete');
+            } else if (gestureState.moveX > rightBuffer) {
+              console.log('Dropping habit in failed zone:', habit.name);
+              handleHabitDrop(habit, 'failed');
+            } else {
+              console.log('Dropped in middle area, keeping habit in original position');
+            }
           } else {
-            console.log('Dropped in middle area, keeping habit in original position');
+            console.log('Habit dropped outside zones, returning to original position');
           }
-        } else {
-          console.log('Habit dropped outside zones, returning to original position');
-        }
-        
-        // Reset drag state
-        dragPosition.setValue({ x: 0, y: 0 }); // Reset drag position
-        setDraggedHabit(null);
-        setActiveDropZone(null);
+          
+          dragPosition.setValue({ x: 0, y: 0 });
+          setDraggedHabit(null);
+          setActiveDropZone(null);
       },
     });
   }, [activeDropZone]);
@@ -431,7 +424,6 @@ const HabitScreen = ({ navigation }) => {
       </ScrollView>
 
       <View style={[styles.dropZonesContainer, { paddingBottom: SPACING.lg + insets.bottom }]}>
-        {/* Debug info */}
         {draggedHabit && (
           <View style={styles.debugInfo}>
             <Text style={styles.debugText}>
@@ -443,7 +435,6 @@ const HabitScreen = ({ navigation }) => {
         {renderDropZone('failed')}
       </View>
 
-      {/* Success Animation Overlay */}
       {showSuccessOverlay && (
         <Animated.View 
           style={[
@@ -474,7 +465,6 @@ const HabitScreen = ({ navigation }) => {
         </Animated.View>
       )}
 
-      {/* Failed Animation Overlay */}
       {showTrashOverlay && (
         <Animated.View 
           style={[
