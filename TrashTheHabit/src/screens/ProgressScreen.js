@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,10 +15,12 @@ import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { getUserSettings } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserHabits } from '../config/firebase';
+import { PieChart, LineChart, BarChart } from 'react-native-chart-kit';
 
 const ProgressScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const screenWidth = Dimensions.get('window').width;
   
   const [progress, setProgress] = useState({
     totalHabits: 0,
@@ -86,13 +89,16 @@ const ProgressScreen = ({ navigation }) => {
           const currentStreak = calculateCurrentStreak(completedHabits);
           const longestStreak = calculateLongestStreak(completedHabits);
           
+          const weeklyProgress = calculateWeeklyProgress(completedHabits, failedHabits);
+          
           setProgress({
             totalHabits,
             completedHabits: completedHabits.length,
             failedHabits: failedHabits.length,
             successRate,
             currentStreak,
-            longestStreak
+            longestStreak,
+            weeklyProgress
           });
           
           setHasLoaded(true);
@@ -111,67 +117,171 @@ const ProgressScreen = ({ navigation }) => {
   const calculateCurrentStreak = (completedHabits) => {
     if (!completedHabits || completedHabits.length === 0) return 0;
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    let currentStreak = 0;
-    let currentDate = new Date(today);
-    
-    while (true) {
-      const dateString = currentDate.toISOString().split('T')[0];
-      const habitsForDate = completedHabits.filter(habit => {
-        const completedDate = new Date(habit.completedAt);
-        const completedDateString = completedDate.toISOString().split('T')[0];
-        return completedDateString === dateString;
-      });
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      if (habitsForDate.length > 0) {
-        currentStreak++;
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else {
-        break;
+      let currentStreak = 0;
+      let currentDate = new Date(today);
+      
+      for (let i = 0; i < 365; i++) {
+        const dateString = currentDate.toISOString().split('T')[0];
+        const habitsForDate = completedHabits.filter(habit => {
+          try {
+            if (!habit.completedAt) return false;
+            const completedDate = new Date(habit.completedAt);
+            if (isNaN(completedDate.getTime())) return false;
+            const completedDateString = completedDate.toISOString().split('T')[0];
+            return completedDateString === dateString;
+          } catch (error) {
+            console.log('Error processing habit date:', error);
+            return false;
+          }
+        });
+        
+        if (habitsForDate.length > 0) {
+          currentStreak++;
+          currentDate.setDate(currentDate.getDate() - 1);
+        } else {
+          break;
+        }
       }
+      
+      return currentStreak;
+    } catch (error) {
+      console.log('Error calculating current streak:', error);
+      return 0;
     }
-    
-    return currentStreak;
   };
 
   const calculateLongestStreak = (completedHabits) => {
     if (!completedHabits || completedHabits.length === 0) return 0;
     
-    const dateMap = new Map();
-    
-    completedHabits.forEach(habit => {
-      if (habit.completedAt) {
-        const dateString = new Date(habit.completedAt).toISOString().split('T')[0];
-        dateMap.set(dateString, (dateMap.get(dateString) || 0) + 1);
-      }
-    });
-    
-    const sortedDates = Array.from(dateMap.keys()).sort();
-    let longestStreak = 0;
-    let currentStreak = 0;
-    let previousDate = null;
-    
-    for (const dateString of sortedDates) {
-      const currentDate = new Date(dateString);
+    try {
+      const dateMap = new Map();
       
-      if (previousDate === null) {
-        currentStreak = 1;
-      } else {
-        const dayDiff = Math.floor((currentDate - previousDate) / (1000 * 60 * 60 * 24));
-        if (dayDiff === 1) {
-          currentStreak++;
-        } else {
-          currentStreak = 1;
+      completedHabits.forEach(habit => {
+        try {
+          if (habit.completedAt) {
+            const completedDate = new Date(habit.completedAt);
+            if (!isNaN(completedDate.getTime())) {
+              const dateString = completedDate.toISOString().split('T')[0];
+              dateMap.set(dateString, (dateMap.get(dateString) || 0) + 1);
+            }
+          }
+        } catch (error) {
+          console.log('Error processing habit date in longest streak:', error);
+            }
+          });
+          
+          const sortedDates = Array.from(dateMap.keys()).sort();
+          let longestStreak = 0;
+          let currentStreak = 0;
+          let previousDate = null;
+          
+          for (const dateString of sortedDates) {
+            try {
+              const currentDate = new Date(dateString);
+              if (isNaN(currentDate.getTime())) continue;
+              
+              if (previousDate === null) {
+                currentStreak = 1;
+              } else {
+                const dayDiff = Math.floor((currentDate - previousDate) / (1000 * 60 * 60 * 24));
+                if (dayDiff === 1) {
+                  currentStreak++;
+                } else {
+                  currentStreak = 1;
+                }
+              }
+              
+              longestStreak = Math.max(longestStreak, currentStreak);
+              previousDate = currentDate;
+            } catch (error) {
+              console.log('Error processing date in longest streak loop:', error);
+              continue;
+            }
+          }
+          
+          return longestStreak;
+        } catch (error) {
+          console.log('Error calculating longest streak:', error);
+          return 0;
         }
+      };
+
+  const calculateWeeklyProgress = (completedHabits, failedHabits) => {
+    try {
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      // Generate daily data for the week
+      const dailyData = [];
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      
+      for (let i = 0; i < 7; i++) {
+        const currentDate = new Date(startOfWeek);
+        currentDate.setDate(startOfWeek.getDate() + i);
+        currentDate.setHours(0, 0, 0, 0);
+        
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(currentDate.getDate() + 1);
+        
+        const dailyCompleted = completedHabits.filter(habit => {
+          try {
+            if (!habit.completedAt) return false;
+            const completedDate = new Date(habit.completedAt);
+            if (isNaN(completedDate.getTime())) return false;
+            return completedDate >= currentDate && completedDate < nextDate;
+          } catch (error) {
+            console.log('Error processing completed habit date:', error);
+            return false;
+          }
+        }).length;
+        
+        const dailyFailed = failedHabits.filter(habit => {
+          try {
+            if (!habit.failedAt) return false;
+            const failedDate = new Date(habit.failedAt);
+            if (isNaN(failedDate.getTime())) return false;
+            return failedDate >= currentDate && failedDate < nextDate;
+          } catch (error) {
+            console.log('Error processing failed habit date:', error);
+            return false;
+          }
+        }).length;
+        
+        dailyData.push({
+          day: dayNames[i],
+          completed: dailyCompleted,
+          failed: dailyFailed
+        });
       }
       
-      longestStreak = Math.max(longestStreak, currentStreak);
-      previousDate = currentDate;
+      const weeklyCompleted = dailyData.reduce((sum, day) => sum + day.completed, 0);
+      const weeklyFailed = dailyData.reduce((sum, day) => sum + day.failed, 0);
+      
+      return {
+        weeklyCompleted,
+        weeklyFailed,
+        totalWeekly: weeklyCompleted + weeklyFailed,
+        dailyData
+      };
+    } catch (error) {
+      console.log('Error calculating weekly progress:', error);
+      return {
+        weeklyCompleted: 0,
+        weeklyFailed: 0,
+        totalWeekly: 0,
+        dailyData: []
+      };
     }
-    
-    return longestStreak;
   };
 
   const loadSettings = async () => {
@@ -251,32 +361,7 @@ const ProgressScreen = ({ navigation }) => {
     );
   };
 
-  const ProgressBar = ({ value, maxValue, color, label }) => {
-    const progressWidth = progressAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, Math.min((value / maxValue) * 100, 100)],
-    });
 
-    return (
-      <View style={styles.progressItem}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>{label}</Text>
-          <Text style={styles.progressValue}>{value}/{maxValue}</Text>
-        </View>
-        <View style={styles.progressBarContainer}>
-          <Animated.View 
-            style={[
-              styles.progressBar,
-              { 
-                width: progressWidth + '%',
-                backgroundColor: color 
-              }
-            ]} 
-          />
-        </View>
-      </View>
-    );
-  };
 
   if (!progress) {
     return (
@@ -350,20 +435,42 @@ const ProgressScreen = ({ navigation }) => {
           />
         </View>
 
-        <View style={styles.progressSection}>
-          <Text style={styles.sectionTitle}>Weekly Progress</Text>
-          <ProgressBar
-            label="Completed"
-            value={progress.completedHabits || 0}
-            maxValue={progress.totalHabits || 1}
-            color={COLORS.success}
-          />
-          <ProgressBar
-            label="Failed"
-            value={progress.failedHabits || 0}
-            maxValue={progress.totalHabits || 1}
-            color={COLORS.error}
-          />
+        {/* Weekly Horizontal Bar Chart */}
+        <View style={styles.barChartSection}>
+          <Text style={styles.sectionTitle}>Weekly Progress Summary</Text>
+          <View style={styles.horizontalBarContainer}>
+            <View style={styles.barRow}>
+              <Text style={styles.barLabel}>Completed</Text>
+              <View style={styles.barWrapper}>
+                <View 
+                  style={[
+                    styles.horizontalBar, 
+                    { 
+                      width: `${Math.min((progress.completedHabits || 0) * 15, 100)}%`,
+                      backgroundColor: COLORS.success 
+                    }
+                  ]} 
+                />
+                <Text style={styles.barValue}>{progress.completedHabits || 0}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.barRow}>
+              <Text style={styles.barLabel}>Failed</Text>
+              <View style={styles.barWrapper}>
+                <View 
+                  style={[
+                    styles.horizontalBar, 
+                    { 
+                      width: `${Math.min((progress.failedHabits || 0) * 15, 100)}%`,
+                      backgroundColor: COLORS.error 
+                    }
+                  ]} 
+                />
+                <Text style={styles.barValue}>{progress.failedHabits || 0}</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         {progress.weeklyData && progress.weeklyData.length > 0 && (
@@ -587,7 +694,84 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   scrollContent: {
-    paddingBottom: 100, // Adjust as needed for the FloatingNavbar
+    paddingBottom: 100,
+  },
+
+  chartWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: SPACING.lg,
+    padding: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    minHeight: 220,
+  },
+  chartContainer: {
+    marginTop: -SPACING.md,
+    marginLeft: -SPACING.sm,
+  },
+  barChartSection: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.lg,
+  },
+  horizontalBarContainer: {
+    paddingVertical: SPACING.md,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  barLabel: {
+    ...FONTS.medium,
+    fontSize: SIZES.font,
+    color: COLORS.text,
+    width: 80,
+    marginRight: SPACING.md,
+  },
+  barWrapper: {
+    flex: 1,
+    height: 30,
+    backgroundColor: COLORS.border,
+    borderRadius: SIZES.radius,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  horizontalBar: {
+    height: '100%',
+    borderRadius: SIZES.radius,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
+  barValue: {
+    ...FONTS.bold,
+    fontSize: SIZES.font,
+    color: COLORS.text,
+    position: 'absolute',
+    right: SPACING.sm,
+    top: 5,
+  },
+  progressSummary: {
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    backgroundColor: COLORS.primary + '10',
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  progressSummaryText: {
+    ...FONTS.medium,
+    fontSize: SIZES.font,
+    color: COLORS.primary,
+    textAlign: 'center',
   },
 });
 
