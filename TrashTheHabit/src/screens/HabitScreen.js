@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Animated,
   PanResponder,
   TouchableOpacity,
@@ -15,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
+import CustomAlert from '../components/CustomAlert';
 import { getUserSettings } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserHabits, updateHabitStatus, deleteHabit } from '../config/firebase';
@@ -40,6 +40,12 @@ const HabitScreen = ({ navigation }) => {
     soundEnabled: true,
     hapticsEnabled: true,
     notificationsEnabled: true,
+  });
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
   });
 
   const successAnim = useRef(new Animated.Value(0)).current;
@@ -87,7 +93,6 @@ const HabitScreen = ({ navigation }) => {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
               onPanResponderGrant: (evt, gestureState) => {
-          console.log('PanResponder grant:', { x0: gestureState.x0, y0: gestureState.y0 });
           setDraggedHabit(habit);
           setActiveDropZone(null);
         },
@@ -103,42 +108,29 @@ const HabitScreen = ({ navigation }) => {
           
                       if (gestureState.moveX < leftBuffer) {
               if (activeDropZone !== 'complete') {
-                console.log('Hovering over complete zone');
                 setActiveDropZone('complete');
               }
             } else if (gestureState.moveX > rightBuffer) {
               if (activeDropZone !== 'failed') {
-                console.log('Hovering over failed zone');
                 setActiveDropZone('failed');
               }
-            } else {
-              console.log('In middle area, keeping current zone');
             }
           } else {
             if (activeDropZone !== null) {
-              console.log('Not hovering over any zone');
               setActiveDropZone(null);
             }
           }
       },
               onPanResponderRelease: (evt, gestureState) => {
-          console.log('PanResponder release:', { moveX: gestureState.moveX, moveY: gestureState.moveY });
-          
           if (gestureState.moveY > screenHeight - 200) {
             const leftBuffer = screenWidth * 0.4;
             const rightBuffer = screenWidth * 0.6;
           
                       if (gestureState.moveX < leftBuffer) {
-              console.log('Dropping habit in complete zone:', habit.name);
               handleHabitDrop(habit, 'complete');
             } else if (gestureState.moveX > rightBuffer) {
-              console.log('Dropping habit in failed zone:', habit.name);
               handleHabitDrop(habit, 'failed');
-            } else {
-              console.log('Dropped in middle area, keeping habit in original position');
             }
-          } else {
-            console.log('Habit dropped outside zones, returning to original position');
           }
           
           dragPosition.setValue({ x: 0, y: 0 });
@@ -149,12 +141,8 @@ const HabitScreen = ({ navigation }) => {
   }, [activeDropZone]);
 
   const handleHabitDrop = async (habit, zoneType) => {
-    console.log('handleHabitDrop called with:', { habit: habit.name, zoneType });
-    
     if (zoneType === 'complete') {
-      console.log('Completing habit:', habit.name);
       const result = await updateHabitStatus(habit.id, 'completed', { completedAt: new Date() });
-      console.log('Update result:', result);
       
       if (result.success) {
         setShowSuccessOverlay(true);
@@ -174,12 +162,15 @@ const HabitScreen = ({ navigation }) => {
           setShowSuccessOverlay(false);
         });
       } else {
-        Alert.alert('Error', 'Failed to update habit status');
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: 'Failed to update habit status',
+          type: 'error',
+        });
       }
     } else if (zoneType === 'failed') {
-      console.log('Marking habit as failed:', habit.name);
       const result = await updateHabitStatus(habit.id, 'failed', { failedAt: new Date() });
-      console.log('Update result:', result);
       
       if (result.success) {
         setShowTrashOverlay(true);
@@ -199,7 +190,12 @@ const HabitScreen = ({ navigation }) => {
           setShowTrashOverlay(false);
         });
       } else {
-        Alert.alert('Error', 'Failed to update habit status');
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: 'Failed to update habit status',
+          type: 'error',
+        });
       }
     }
   };
@@ -207,38 +203,55 @@ const HabitScreen = ({ navigation }) => {
   const handleDeleteHabit = async (habitId) => {
     // Prevent deleting a habit that's currently being dragged
     if (draggedHabit && draggedHabit.id === habitId) {
-      Alert.alert('Cannot Delete', 'Please finish dragging the habit before deleting it.');
+      setAlertConfig({
+        visible: true,
+        title: 'Cannot Delete',
+        message: 'Please finish dragging the habit before deleting it.',
+        type: 'warning',
+      });
       return;
     }
 
-    Alert.alert(
-      'Delete Habit',
-      'Are you sure you want to delete this habit? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await deleteHabit(habitId);
-              if (result.success) {
-                Alert.alert('Success', 'Habit deleted successfully!');
-                // The habit will be automatically removed from the list via the Firestore listener
-              } else {
-                Alert.alert('Error', result.error || 'Failed to delete habit');
-              }
-            } catch (error) {
-              console.error('Error deleting habit:', error);
-              Alert.alert('Error', 'Failed to delete habit. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      title: 'Delete Habit',
+      message: 'Are you sure you want to delete this habit? This action cannot be undone.',
+      type: 'warning',
+      showCancel: true,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const result = await deleteHabit(habitId);
+          if (result.success) {
+            setAlertConfig({
+              visible: true,
+              title: 'Success',
+              message: 'Habit deleted successfully!',
+              type: 'success',
+              autoClose: true,
+              autoCloseDelay: 2000,
+            });
+            // The habit will be automatically removed from the list via the Firestore listener
+          } else {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: result.error || 'Failed to delete habit',
+              type: 'error',
+            });
+          }
+        } catch (error) {
+          console.error('Error deleting habit:', error);
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Failed to delete habit. Please try again.',
+            type: 'error',
+          });
+        }
+      },
+    });
   };
 
   const renderHabitCard = useCallback((habit) => {
@@ -263,9 +276,9 @@ const HabitScreen = ({ navigation }) => {
             ],
             zIndex: 1000,
             elevation: 10,
-            shadowColor: COLORS.primary,
+            shadowColor: COLORS.white,
             shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.6,
+            shadowOpacity: 0.3,
             shadowRadius: 12,
           }
         ]}
@@ -304,12 +317,9 @@ const HabitScreen = ({ navigation }) => {
   }, [draggedHabit, dragPosition, createPanResponder]);
 
   const renderDropZone = (zoneType) => {
-    console.log('Rendering drop zone:', zoneType);
     const isHighlighted = activeDropZone === zoneType;
     const isCompleteZone = zoneType === 'complete';
     const isFailedZone = zoneType === 'failed';
-    
-    console.log('Drop zone state:', { zoneType, isHighlighted, isCompleteZone, isFailedZone });
 
     const zoneConfig = {
       complete: {
@@ -424,13 +434,6 @@ const HabitScreen = ({ navigation }) => {
       </ScrollView>
 
       <View style={[styles.dropZonesContainer, { paddingBottom: SPACING.lg + insets.bottom }]}>
-        {draggedHabit && (
-          <View style={styles.debugInfo}>
-            <Text style={styles.debugText}>
-              Dragging: {draggedHabit.name} | Active Zone: {activeDropZone || 'none'}
-            </Text>
-          </View>
-        )}
         {renderDropZone('complete')}
         {renderDropZone('failed')}
       </View>
@@ -495,6 +498,20 @@ const HabitScreen = ({ navigation }) => {
         </Animated.View>
       )}
 
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
+
       <FloatingNavbar
         currentRoute={currentRoute}
         onNavigate={handleNavigation}
@@ -552,9 +569,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   draggingCard: {
-    shadowColor: COLORS.black,
+    shadowColor: COLORS.white,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 15,
     borderColor: COLORS.white,
@@ -784,18 +801,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     textAlign: 'center',
     marginTop: SPACING.sm,
-  },
-  debugInfo: {
-    position: 'absolute',
-    top: SPACING.md,
-    left: SPACING.md,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: SPACING.sm,
-    borderRadius: SPACING.xs,
-  },
-  debugText: {
-    color: COLORS.white,
-    fontSize: SIZES.small,
   },
 });
 

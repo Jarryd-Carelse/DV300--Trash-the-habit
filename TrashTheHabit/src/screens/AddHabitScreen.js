@@ -5,13 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import FloatingNavbar from '../components/FloatingNavbar';
+import CustomAlert from '../components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { getUserSettings } from '../utils/storage';
@@ -30,6 +30,12 @@ const AddHabitScreen = ({ navigation }) => {
     soundEnabled: true,
     hapticsEnabled: true,
     notificationsEnabled: true,
+  });
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
   });
   const { user } = useAuth();
 
@@ -106,12 +112,22 @@ const AddHabitScreen = ({ navigation }) => {
 
   const handleAddHabit = async () => {
     if (!habitName.trim()) {
-      Alert.alert('Error', 'Please enter a habit name');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Please enter a habit name',
+        type: 'error',
+      });
       return;
     }
 
     if (!selectedCategory) {
-      Alert.alert('Error', 'Please select a category');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Please select a category',
+        type: 'error',
+      });
       return;
     }
 
@@ -153,10 +169,20 @@ const AddHabitScreen = ({ navigation }) => {
           navigation.navigate('Home');
         }, 1500);
       } else {
-        Alert.alert('Error', result.error || 'Failed to create habit');
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: result.error || 'Failed to create habit',
+          type: 'error',
+        });
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to create habit. Please try again.');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to create habit. Please try again.',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -181,43 +207,58 @@ const AddHabitScreen = ({ navigation }) => {
   };
 
   const handleDeleteHabit = async (habitId) => {
-    Alert.alert(
-      'Remove Bad Habit',
-      'Are you sure you want to remove this habit from your list? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // First delete from Firestore database
-              const result = await deleteHabit(habitId);
-              
-              if (result.success) {
-                // Animate deletion after successful database deletion
-                Animated.timing(deleteAnim, {
-                  toValue: 0,
-                  duration: 300,
-                  useNativeDriver: true,
-                }).start(() => {
-                  // Remove from local state
-                  setHabits(prev => prev.filter(h => h.id !== habitId));
-                  deleteAnim.setValue(1);
-                });
-                
-                Alert.alert('Success', 'Bad habit removed successfully');
-              } else {
-                Alert.alert('Error', result.error || 'Failed to delete habit from database');
-              }
-            } catch (error) {
-              console.error('Error deleting habit:', error);
-              Alert.alert('Error', 'Failed to delete habit. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      title: 'Remove Bad Habit',
+      message: 'Are you sure you want to remove this habit from your list? This action cannot be undone.',
+      type: 'warning',
+      showCancel: true,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          // First delete from Firestore database
+          const result = await deleteHabit(habitId);
+          
+          if (result.success) {
+            // Animate deletion after successful database deletion
+            Animated.timing(deleteAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => {
+              // Remove from local state
+              setHabits(prev => prev.filter(h => h.id !== habitId));
+              deleteAnim.setValue(1);
+            });
+            
+            setAlertConfig({
+              visible: true,
+              title: 'Success',
+              message: 'Bad habit removed successfully',
+              type: 'success',
+              autoClose: true,
+              autoCloseDelay: 2000,
+            });
+          } else {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: result.error || 'Failed to delete habit from database',
+              type: 'error',
+            });
+          }
+        } catch (error) {
+          console.error('Error deleting habit:', error);
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Failed to delete habit. Please try again.',
+            type: 'error',
+          });
+        }
+      },
+    });
   };
 
   const renderHabitItem = (habit) => {
@@ -375,6 +416,20 @@ const AddHabitScreen = ({ navigation }) => {
           </Animated.View>
         </Animated.View>
       )}
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
 
       <FloatingNavbar
         currentRoute={currentRoute}

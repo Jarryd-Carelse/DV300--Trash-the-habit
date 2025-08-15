@@ -6,7 +6,9 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  getAuth
+  getAuth,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -21,7 +23,8 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
-  getDoc
+  getDoc,
+  writeBatch
 } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -268,6 +271,65 @@ export const getUserHabits = (callback) => {
       all: []
     });
     return null;
+  }
+};
+
+// Delete user account and all associated data
+// Refresh user session to handle expired tokens
+export const refreshUserSession = async (email, password) => {
+  try {
+    // Sign in again to refresh the token
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return { success: true, user: userCredential.user };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete user account and all associated data
+export const deleteUser = async (password) => {
+  try {
+    const user = getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+    
+    // 1. Re-authenticate user before deletion (required by Firebase)
+    if (password) {
+      const credential = EmailAuthProvider.credential(user.email, password);
+      await reauthenticateWithCredential(user, credential);
+    }
+    
+    // 2. Delete all user's habits from Firestore
+    const habitsRef = collection(db, 'habits');
+    const habitsQuery = query(habitsRef, where('userId', '==', user.uid));
+    const habitsSnapshot = await getDocs(habitsQuery);
+    
+    // Delete all habits in batches
+    const batch = writeBatch(db);
+    habitsSnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    
+    // 3. Delete user profile from Firestore
+    const userRef = doc(db, 'users', user.uid);
+    batch.delete(userRef);
+    
+    // 4. Commit all deletions
+    await batch.commit();
+    
+    // 5. Delete the user authentication account (email/password)
+    await user.delete();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    if (error.code === 'auth/requires-recent-login') {
+      return { success: false, error: 'Please provide your password to confirm account deletion' };
+    } else if (error.code === 'auth/user-token-expired') {
+      return { success: false, error: 'Your session has expired. Please sign in again to delete your account.' };
+    } else if (error.code === 'auth/network-request-failed') {
+      return { success: false, error: 'Network error. Please check your internet connection and try again.' };
+    }
+    return { success: false, error: error.message };
   }
 };
 

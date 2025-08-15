@@ -6,13 +6,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Image,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import CustomAlert from '../components/CustomAlert';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,6 +22,12 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
   const { signup } = useAuth();
 
   // Twinning animations
@@ -100,26 +106,31 @@ const SignUpScreen = ({ navigation }) => {
         ]).start();
         
         setLoading(false);
-        Alert.alert(
-          'Success',
-          'Account created successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navigation will be handled by the AuthContext
-                // The user will be automatically redirected to the home screen
-              },
-            },
-          ]
-        );
+        setAlertConfig({
+          visible: true,
+          title: 'Success',
+          message: 'Account created successfully!',
+          type: 'success',
+          autoClose: true,
+          autoCloseDelay: 2000,
+        });
       } else {
         setLoading(false);
-        Alert.alert('Error', result.error || 'Sign up failed. Please try again.');
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: result.error || 'Sign up failed. Please try again.',
+          type: 'error',
+        });
       }
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Sign up failed. Please try again.');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Sign up failed. Please try again.',
+        type: 'error',
+      });
     }
   };
 
@@ -229,6 +240,16 @@ const SignUpScreen = ({ navigation }) => {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
     </SafeAreaView>
   );
 };

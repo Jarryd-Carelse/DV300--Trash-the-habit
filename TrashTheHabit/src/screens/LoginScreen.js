@@ -6,13 +6,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Image,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import CustomAlert from '../components/CustomAlert';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,6 +21,12 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
   const { login } = useAuth();
 
   // Twinning animations
@@ -113,11 +119,21 @@ const LoginScreen = ({ navigation }) => {
           }
         }
         
-        Alert.alert('Login Failed', errorMessage);
+        setAlertConfig({
+          visible: true,
+          title: 'Login Failed',
+          message: errorMessage,
+          type: 'error',
+        });
       }
     } catch (error) {
       setLoading(false);
-      Alert.alert('Login Failed', 'Something went wrong. Please check your internet connection and try again.');
+      setAlertConfig({
+        visible: true,
+        title: 'Login Failed',
+        message: 'Something went wrong. Please check your internet connection and try again.',
+        type: 'error',
+      });
     }
   };
 
@@ -218,6 +234,15 @@ const LoginScreen = ({ navigation }) => {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        confirmText="OK"
+      />
     </SafeAreaView>
   );
 };

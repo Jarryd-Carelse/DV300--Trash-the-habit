@@ -6,13 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import CustomAlert from '../components/CustomAlert';
 import * as Firebase from '../config/firebase';
 
 const ProfileScreen = ({ navigation }) => {
@@ -50,6 +50,12 @@ const ProfileScreen = ({ navigation }) => {
     total: 0,
     completed: 0,
     failed: 0
+  });
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
   });
 
   // Load user profile from Firestore when component mounts
@@ -140,7 +146,12 @@ const ProfileScreen = ({ navigation }) => {
     if (isEditing) {
       // Validate that all required fields are filled
       if (!editData.firstName.trim() || !editData.lastName.trim() || !editData.dateOfBirth.trim()) {
-        Alert.alert('Error', 'Please fill in all fields (First Name, Last Name, and Date of Birth)');
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: 'Please fill in all fields (First Name, Last Name, and Date of Birth)',
+          type: 'error',
+        });
         return;
       }
 
@@ -148,7 +159,12 @@ const ProfileScreen = ({ navigation }) => {
         // Check if function exists
         if (typeof Firebase.updateUserProfile !== 'function') {
           console.error('updateUserProfile function not available');
-          Alert.alert('Error', 'Profile update function not available');
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Profile update function not available',
+            type: 'error',
+          });
           return;
         }
         
@@ -168,13 +184,30 @@ const ProfileScreen = ({ navigation }) => {
             dateOfBirth: editData.dateOfBirth.trim()
           }));
           setIsEditing(false);
-          Alert.alert('Success', 'Profile updated successfully!');
+          setAlertConfig({
+            visible: true,
+            title: 'Success',
+            message: 'Profile updated successfully!',
+            type: 'success',
+            autoClose: true,
+            autoCloseDelay: 2000,
+          });
         } else {
-          Alert.alert('Error', result.error || 'Failed to update profile');
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: result.error || 'Failed to update profile',
+            type: 'error',
+          });
         }
       } catch (error) {
         console.error('Error updating profile:', error);
-        Alert.alert('Error', 'Failed to update profile. Please try again.');
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: 'Failed to update profile. Please try again.',
+          type: 'error',
+        });
       }
     } else {
       // Start editing - populate edit data with current values
@@ -197,32 +230,16 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleChangeAvatar = () => {
-    Alert.alert(
-      'Change Avatar',
-      'Choose avatar style and generate new?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Adventurer Style',
-          onPress: () => generateNewAvatar('adventurer'),
-        },
-        {
-          text: 'Bot Style',
-          onPress: () => generateNewAvatar('bottts'),
-        },
-        {
-          text: 'Pixel Style',
-          onPress: () => generateNewAvatar('pixel-art'),
-        },
-        {
-          text: 'Fantasy Style',
-          onPress: () => generateNewAvatar('avataaars'),
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      title: 'Change Avatar',
+      message: 'Do you want to randomize your avatar?',
+      type: 'info',
+      showCancel: true,
+      confirmText: 'Yes',
+      cancelText: 'Cancel',
+      onConfirm: () => generateNewAvatar('adventurer'),
+    });
   };
 
   const generateNewAvatar = (style = 'adventurer') => {
@@ -246,31 +263,39 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await logout();
-              if (result.success) {
-                // Logout successful, user will be automatically redirected to login screen
-                // by the AuthContext
-              } else {
-                Alert.alert('Error', result.error || 'Logout failed. Please try again.');
-              }
-            } catch (error) {
-              console.error('Error during logout:', error);
-              Alert.alert('Error', 'Logout failed. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      type: 'warning',
+      showCancel: true,
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const result = await logout();
+          if (result.success) {
+            // Logout successful, user will be automatically redirected to login screen
+            // by the AuthContext
+          } else {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: result.error || 'Logout failed. Please try again.',
+              type: 'error',
+            });
+          }
+        } catch (error) {
+          console.error('Error during logout:', error);
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Logout failed. Please try again.',
+            type: 'error',
+          });
+        }
+      },
+    });
   };
 
   const formatDate = (dateString) => {
@@ -482,6 +507,20 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
     </SafeAreaView>
   );
 };
