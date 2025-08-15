@@ -233,12 +233,12 @@ export const getUserHabits = (callback) => {
         // Separate habits by status
         const activeHabits = habits.filter(h => h.status === 'active');
         const completedHabits = habits.filter(h => h.status === 'completed');
-        const trashedHabits = habits.filter(h => h.status === 'trashed');
+        const failedHabits = habits.filter(h => h.status === 'failed');
         
         callback({
           active: activeHabits,
           completed: completedHabits,
-          trashed: trashedHabits,
+          failed: failedHabits,
           all: habits
         });
       },

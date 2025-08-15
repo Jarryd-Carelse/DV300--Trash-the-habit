@@ -22,7 +22,7 @@ const ProgressScreen = ({ navigation }) => {
   const [progress, setProgress] = useState({
     totalHabits: 0,
     completedHabits: 0,
-    trashedHabits: 0,
+    failedHabits: 0,
     successRate: 0,
     currentStreak: 0,
     longestStreak: 0
@@ -78,9 +78,9 @@ const ProgressScreen = ({ navigation }) => {
         const unsubscribe = getUserHabits((habitsData) => {
           const activeHabits = habitsData.active || [];
           const completedHabits = habitsData.completed || [];
-          const trashedHabits = habitsData.trashed || [];
+          const failedHabits = habitsData.failed || [];
           
-          const totalHabits = activeHabits.length + completedHabits.length + trashedHabits.length;
+          const totalHabits = activeHabits.length + completedHabits.length + failedHabits.length;
           const successRate = totalHabits > 0 ? Math.round((completedHabits.length / totalHabits) * 100) : 0;
           
           // Calculate streaks (simplified - you can enhance this logic)
@@ -90,7 +90,7 @@ const ProgressScreen = ({ navigation }) => {
           setProgress({
             totalHabits,
             completedHabits: completedHabits.length,
-            trashedHabits: trashedHabits.length,
+            failedHabits: failedHabits.length,
             successRate,
             currentStreak,
             longestStreak
@@ -263,10 +263,10 @@ const ProgressScreen = ({ navigation }) => {
             index={0}
           />
           <StatCard
-            title="Trashed This Week"
-            value={progress.trashedHabits || 0}
-            icon="trash"
-            color={COLORS.accent}
+            title="Failed This Week"
+            value={progress.failedHabits || 0}
+            icon="close-circle"
+            color={COLORS.error}
             index={1}
           />
           <StatCard
@@ -294,10 +294,10 @@ const ProgressScreen = ({ navigation }) => {
             color={COLORS.success}
           />
           <ProgressBar
-            label="Trashed"
-            value={progress.trashedHabits || 0}
+            label="Failed"
+            value={progress.failedHabits || 0}
             maxValue={progress.totalHabits || 1}
-            color={COLORS.accent}
+            color={COLORS.error}
           />
         </View>
 
@@ -316,8 +316,8 @@ const ProgressScreen = ({ navigation }) => {
                     />
                     <View 
                       style={[
-                        styles.trashedBar, 
-                        { height: day.trashed * 10 }
+                        styles.failedBar, 
+                        { height: day.failed * 10 }
                       ]} 
                     />
                   </View>
@@ -331,8 +331,8 @@ const ProgressScreen = ({ navigation }) => {
                 <Text style={styles.legendText}>Completed</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: COLORS.accent }]} />
-                <Text style={styles.legendText}>Trashed</Text>
+                <View style={[styles.legendColor, { backgroundColor: COLORS.error }]} />
+                <Text style={styles.legendText}>Failed</Text>
               </View>
             </View>
           </View>
@@ -455,9 +455,9 @@ const styles = StyleSheet.create({
     marginRight: 2,
     borderRadius: 4,
   },
-  trashedBar: {
+  failedBar: {
     width: 8,
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.error,
     borderRadius: 4,
   },
   dayLabel: {

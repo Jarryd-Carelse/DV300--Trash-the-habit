@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import FloatingNavbar from '../components/FloatingNavbar';
-import UserInfo from '../components/UserInfo';
 import { getUserSettings } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserHabits, updateHabitStatus, deleteHabit } from '../config/firebase';
@@ -29,7 +28,7 @@ const HabitScreen = ({ navigation }) => {
   // Real data from Firestore
   const [habits, setHabits] = useState([]);
   const [completed, setCompleted] = useState([]);
-  const [trashed, setTrashed] = useState([]);
+  const [failed, setFailed] = useState([]);
   const [draggedHabit, setDraggedHabit] = useState(null);
   const [dragPosition] = useState(new Animated.ValueXY());
   const [activeDropZone, setActiveDropZone] = useState(null);
@@ -55,7 +54,7 @@ const HabitScreen = ({ navigation }) => {
       const unsubscribe = getUserHabits((habitsData) => {
         setHabits(habitsData.active || []);
         setCompleted(habitsData.completed || []);
-        setTrashed(habitsData.trashed || []);
+        setFailed(habitsData.failed || []);
       });
       
       return () => {
@@ -109,9 +108,9 @@ const HabitScreen = ({ navigation }) => {
               setActiveDropZone('complete');
             }
           } else {
-            if (activeDropZone !== 'trash') {
-              console.log('Hovering over trash zone');
-              setActiveDropZone('trash');
+            if (activeDropZone !== 'failed') {
+              console.log('Hovering over failed zone');
+              setActiveDropZone('failed');
             }
           }
         } else {
@@ -129,8 +128,8 @@ const HabitScreen = ({ navigation }) => {
             console.log('Dropping habit in complete zone:', habit.name);
             handleHabitDrop(habit, 'complete');
           } else {
-            console.log('Dropping habit in trash zone:', habit.name);
-            handleHabitDrop(habit, 'trash');
+            console.log('Dropping habit in failed zone:', habit.name);
+            handleHabitDrop(habit, 'failed');
           }
         } else {
           console.log('Habit dropped outside zones, returning to original position');
@@ -145,65 +144,51 @@ const HabitScreen = ({ navigation }) => {
 
   const handleHabitDrop = async (habit, zoneType) => {
     if (zoneType === 'complete') {
-      console.log('Starting success animation');
-      setShowSuccessOverlay(true);
+      console.log('Completing habit:', habit.name);
+      const result = await updateHabitStatus(habit.id, 'completed', { completedAt: new Date() });
       
-      const successSequence = Animated.sequence([
-        Animated.timing(successAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.delay(1200),
-        Animated.timing(successAnim, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]);
-      
-      successSequence.start(() => {
-        setShowSuccessOverlay(false);
-        successAnim.setValue(0);
-      });
-
-      // Update habit status in Firestore
-      const result = await updateHabitStatus(habit.id, 'completed', {
-        completedAt: new Date()
-      });
-      
-      if (!result.success) {
+      if (result.success) {
+        setShowSuccessOverlay(true);
+        Animated.sequence([
+          Animated.timing(successAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.delay(2000),
+          Animated.timing(successAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setShowSuccessOverlay(false);
+        });
+      } else {
         Alert.alert('Error', 'Failed to update habit status');
       }
-    } else if (zoneType === 'trash') {
-      console.log('Starting trash animation');
-      setShowTrashOverlay(true);
+    } else if (zoneType === 'failed') {
+      console.log('Marking habit as failed:', habit.name);
+      const result = await updateHabitStatus(habit.id, 'failed', { failedAt: new Date() });
       
-      const trashSequence = Animated.sequence([
-        Animated.timing(trashAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.delay(800),
-        Animated.timing(trashAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]);
-      
-      trashSequence.start(() => {
-        setShowTrashOverlay(false);
-        trashAnim.setValue(0);
-      });
-
-      // Update habit status in Firestore
-      const result = await updateHabitStatus(habit.id, 'trashed', {
-        trashedAt: new Date()
-      });
-      
-      if (!result.success) {
+      if (result.success) {
+        setShowTrashOverlay(true);
+        Animated.sequence([
+          Animated.timing(trashAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.delay(2000),
+          Animated.timing(trashAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setShowTrashOverlay(false);
+        });
+      } else {
         Alert.alert('Error', 'Failed to update habit status');
       }
     }
@@ -308,24 +293,44 @@ const HabitScreen = ({ navigation }) => {
     );
   }, [draggedHabit, dragPosition, createPanResponder]);
 
-  const renderDropZone = (type) => {
-    const isComplete = type === 'complete';
-    const isHighlighted = activeDropZone === type;
+  const renderDropZone = (zoneType) => {
+    const isHighlighted = activeDropZone === zoneType;
+    const isCompleteZone = zoneType === 'complete';
+    const isFailedZone = zoneType === 'failed';
     
+    const zoneConfig = {
+      complete: {
+        title: 'Beat Habit Today!',
+        subtitle: 'Drop here to mark as beaten',
+        color: COLORS.success,
+        icon: 'checkmark-circle',
+        message: 'Well done! You beat a habit today!'
+      },
+      failed: {
+        title: 'Failed to Break Habit',
+        subtitle: 'Drop here if you failed today',
+        color: COLORS.error,
+        icon: 'close-circle',
+        message: 'Keep trying! Tomorrow is another day!'
+      }
+    };
+
+    const config = zoneConfig[zoneType];
+
     const dropZoneScale = dropZoneAnim.interpolate({
       inputRange: [0, 1],
       outputRange: [1, 0.95],
     });
 
     const getHighlightStyle = () => {
-      if (activeDropZone === type) {
-        if (isComplete) {
+      if (activeDropZone === zoneType) {
+        if (isCompleteZone) {
           return {
             backgroundColor: COLORS.success + '40',
             borderColor: COLORS.success,
             transform: [{ scale: dropZoneScale }],
           };
-        } else {
+        } else if (isFailedZone) {
           return {
             backgroundColor: COLORS.error + '40',
             borderColor: COLORS.error,
@@ -338,24 +343,24 @@ const HabitScreen = ({ navigation }) => {
 
     return (
       <Animated.View
-        key={type}
+        key={zoneType}
         style={[
           styles.dropZone,
-          isComplete ? styles.completeZone : styles.trashZone,
+          isCompleteZone ? styles.completeZone : styles.trashZone,
           getHighlightStyle(),
         ]}
       >
         <View style={styles.dropZoneContent}>
           <Ionicons
-            name={isComplete ? "checkmark-circle" : "trash"}
+            name={config.icon}
             size={40}
-            color={isComplete ? COLORS.success : COLORS.error}
+            color={config.color}
           />
           <Text style={styles.dropZoneTitle}>
-            {isComplete ? "Complete" : "Trash"}
+            {config.title}
           </Text>
           <Text style={styles.dropZoneSubtitle}>
-            {isComplete ? "Drop here to complete" : "Drop here to trash"}
+            {config.subtitle}
           </Text>
         </View>
         
@@ -375,7 +380,6 @@ const HabitScreen = ({ navigation }) => {
           <Text style={styles.welcomeText}>
             Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'User'}!
           </Text>
-          <UserInfo />
         </View>
         <Text style={styles.subtitle}>
           Your habits for today
@@ -409,7 +413,7 @@ const HabitScreen = ({ navigation }) => {
 
       <View style={[styles.dropZonesContainer, { paddingBottom: SPACING.lg + insets.bottom }]}>
         {renderDropZone('complete')}
-        {renderDropZone('trash')}
+        {renderDropZone('failed')}
       </View>
 
       {/* Success Animation Overlay */}
@@ -443,19 +447,19 @@ const HabitScreen = ({ navigation }) => {
         </Animated.View>
       )}
 
-      {/* Trash Animation Overlay */}
+      {/* Failed Animation Overlay */}
       {showTrashOverlay && (
         <Animated.View 
           style={[
             styles.animationOverlay,
-            styles.trashOverlay,
+            styles.failedOverlay,
             {
               opacity: trashAnim,
             }
           ]}
         >
           <Animated.View style={[
-            styles.trashContent,
+            styles.failedContent,
             {
               transform: [{
                 scale: trashAnim.interpolate({
@@ -465,11 +469,11 @@ const HabitScreen = ({ navigation }) => {
               }]
             }]
           }>
-            <View style={styles.trashIconContainer}>
-              <Ionicons name="trash" size={100} color={COLORS.white} />
+            <View style={styles.failedIconContainer}>
+              <Ionicons name="close-circle" size={100} color={COLORS.white} />
             </View>
-            <Text style={styles.trashText}>Habit Trashed!</Text>
-            <Text style={styles.trashSubtext}>Do better next time!</Text>
+            <Text style={styles.animationText}>Keep trying! Tomorrow is another day!</Text>
+            <Text style={styles.failedSubtext}>Don't give up, you've got this!</Text>
           </Animated.View>
         </Animated.View>
       )}
@@ -496,8 +500,8 @@ const styles = StyleSheet.create({
   },
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: SPACING.xs,
   },
   welcomeText: {
@@ -629,8 +633,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.success + '10',
   },
   trashZone: {
-    borderColor: COLORS.error,
-    backgroundColor: COLORS.error + '10',
+    backgroundColor: COLORS.error + '20',
+    borderColor: COLORS.error + '40',
   },
   dropZoneContent: {
     alignItems: 'center',
@@ -745,6 +749,24 @@ const styles = StyleSheet.create({
     fontSize: SIZES.font,
     color: COLORS.white,
     marginLeft: SPACING.sm,
+  },
+  failedOverlay: {
+    backgroundColor: COLORS.error + '90',
+  },
+  failedContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xxl,
+  },
+  failedIconContainer: {
+    marginBottom: SPACING.lg,
+  },
+  failedSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.white,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
   },
 });
 

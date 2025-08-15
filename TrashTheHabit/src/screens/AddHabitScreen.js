@@ -33,16 +33,16 @@ const AddHabitScreen = ({ navigation }) => {
   });
   const { user } = useAuth();
 
-  // Predefined habit categories
+  // Predefined habit categories for breaking bad habits
   const habitCategories = [
-    'Health & Fitness',
-    'Productivity',
-    'Learning',
-    'Relationships',
-    'Finance',
-    'Mindfulness',
-    'Creativity',
-    'Other'
+    'Smoking & Vaping',
+    'Unhealthy Eating',
+    'Procrastination',
+    'Social Media',
+    'Gaming',
+    'Overspending',
+    'Negative Thinking',
+    'Other Bad Habit'
   ];
 
   // Twinning animations
@@ -182,12 +182,12 @@ const AddHabitScreen = ({ navigation }) => {
 
   const handleDeleteHabit = async (habitId) => {
     Alert.alert(
-      'Delete Habit',
-      'Are you sure you want to delete this habit? This action cannot be undone.',
+      'Remove Bad Habit',
+      'Are you sure you want to remove this habit from your list? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Remove',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -206,7 +206,7 @@ const AddHabitScreen = ({ navigation }) => {
                   deleteAnim.setValue(1);
                 });
                 
-                Alert.alert('Success', 'Habit deleted successfully');
+                Alert.alert('Success', 'Bad habit removed successfully');
               } else {
                 Alert.alert('Error', result.error || 'Failed to delete habit from database');
               }
@@ -238,7 +238,7 @@ const AddHabitScreen = ({ navigation }) => {
           onPress={() => handleDeleteHabit(habit.id)}
           activeOpacity={0.7}
         >
-          <Ionicons name="trash" size={20} color={COLORS.accent} />
+          <Ionicons name="close-circle" size={20} color={COLORS.error} />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -255,8 +255,8 @@ const AddHabitScreen = ({ navigation }) => {
           })}] }
         ]}
       >
-        <Text style={styles.title}>Build New Habits</Text>
-        <Text style={styles.subtitle}>Choose a category and start your journey</Text>
+        <Text style={styles.title}>Break Bad Habits</Text>
+        <Text style={styles.subtitle}>Choose a habit you want to break and start your journey</Text>
       </Animated.View>
 
       <ScrollView 
@@ -285,7 +285,7 @@ const AddHabitScreen = ({ navigation }) => {
               }
             ]}
           >
-            <Text style={styles.categoryTitle}>Choose a Category</Text>
+            <Text style={styles.categoryTitle}>Choose a Bad Habit Category</Text>
             <View style={styles.categoryGrid}>
               {habitCategories.map((category) => (
                 <TouchableOpacity
@@ -309,7 +309,7 @@ const AddHabitScreen = ({ navigation }) => {
           </Animated.View>
 
           <CustomInput
-            label="Habit Name"
+            label="Bad Habit Name"
             placeholder={selectedCategory ? `Enter your ${selectedCategory.toLowerCase()} habit...` : "Select a category first..."}
             value={habitName}
             onChangeText={setHabitName}
@@ -318,8 +318,8 @@ const AddHabitScreen = ({ navigation }) => {
           />
 
           <CustomInput
-            label="Description (Optional)"
-            placeholder="Add a description to help you remember..."
+            label="Why You Want to Break It (Optional)"
+            placeholder="Add a reason to help motivate you..."
             value={habitDescription}
             onChangeText={setHabitDescription}
             style={styles.input}
@@ -329,7 +329,7 @@ const AddHabitScreen = ({ navigation }) => {
           />
           
           <CustomButton
-            title={selectedCategory ? "Add Habit" : "Select Category First"}
+            title={selectedCategory ? "Add Bad Habit to Break" : "Select Category First"}
             onPress={handleAddHabit}
             loading={loading}
             style={[styles.addButton, !selectedCategory && styles.disabledButton]}
@@ -339,7 +339,7 @@ const AddHabitScreen = ({ navigation }) => {
 
         {habits.length > 0 && (
           <View style={styles.habitsList}>
-            <Text style={styles.sectionTitle}>Your Current Habits</Text>
+            <Text style={styles.sectionTitle}>Your Bad Habits to Break</Text>
             {habits.map(renderHabitItem)}
           </View>
         )}
@@ -369,9 +369,9 @@ const AddHabitScreen = ({ navigation }) => {
             <View style={styles.successIconContainer}>
               <Ionicons name="checkmark-circle" size={80} color={COLORS.white} />
             </View>
-            <Text style={styles.successTitle}>Habit Added!</Text>
-            <Text style={styles.successMessage}>You're one step closer to your goals!</Text>
-            <Text style={styles.successSubtext}>Keep building those positive habits!</Text>
+            <Text style={styles.successTitle}>Bad Habit Added!</Text>
+            <Text style={styles.successMessage}>You're one step closer to breaking free!</Text>
+            <Text style={styles.successSubtext}>Stay strong, you can beat this habit!</Text>
           </Animated.View>
         </Animated.View>
       )}

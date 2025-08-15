@@ -49,7 +49,7 @@ const ProfileScreen = ({ navigation }) => {
   const [habitStats, setHabitStats] = useState({
     total: 0,
     completed: 0,
-    trashed: 0
+    failed: 0
   });
 
   // Load user profile from Firestore when component mounts
@@ -120,12 +120,12 @@ const ProfileScreen = ({ navigation }) => {
       if (habitsData) {
         const total = habitsData.all?.length || 0;
         const completed = habitsData.completed?.length || 0;
-        const trashed = habitsData.trashed?.length || 0;
+        const failed = habitsData.failed?.length || 0;
         
         const stats = {
           total,
           completed,
-          trashed
+          failed
         };
         
         console.log('Habit statistics loaded:', stats);
@@ -464,8 +464,8 @@ const ProfileScreen = ({ navigation }) => {
                 </View>
                 
                 <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{habitStats.trashed}</Text>
-                  <Text style={styles.statLabel}>Trashed</Text>
+                  <Text style={styles.statNumber}>{habitStats.failed}</Text>
+                  <Text style={styles.statLabel}>Failed</Text>
                 </View>
               </View>
             </View>
