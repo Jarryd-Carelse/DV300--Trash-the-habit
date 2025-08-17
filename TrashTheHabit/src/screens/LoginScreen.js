@@ -6,21 +6,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Image,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import CustomAlert from '../components/CustomAlert';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { setLoginStatus } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+  const { login } = useAuth();
 
   // Twinning animations
   const formAnim = useRef(new Animated.Value(1)).current;
@@ -74,9 +81,9 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     
     try {
-      if (email === 'jarryd@mail.com' && password === '123456') {
-        await setLoginStatus(true);
-        
+      const result = await login(email, password);
+      
+      if (result.success) {
         // Success animation
         Animated.sequence([
           Animated.timing(successAnim, {
@@ -92,14 +99,41 @@ const LoginScreen = ({ navigation }) => {
         ]).start();
         
         setLoading(false);
-        navigation.replace('Home');
+        // Navigation will be handled by the AuthContext
+        // The user will be automatically redirected to the home screen
       } else {
         setLoading(false);
-        Alert.alert('Error', 'Invalid credentials. Use jarryd@mail.com / 123456');
+        // Show user-friendly error message instead of Firebase error
+        let errorMessage = 'Login failed. Please try again.';
+        
+        if (result.error) {
+          // Map Firebase errors to user-friendly messages
+          if (result.error.includes('user-not-found') || result.error.includes('wrong-password')) {
+            errorMessage = 'Invalid email or password. Please check your details and try again.';
+          } else if (result.error.includes('too-many-requests')) {
+            errorMessage = 'Too many failed attempts. Please wait a moment before trying again.';
+          } else if (result.error.includes('network')) {
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+          } else if (result.error.includes('invalid-email')) {
+            errorMessage = 'Please enter a valid email address.';
+          }
+        }
+        
+        setAlertConfig({
+          visible: true,
+          title: 'Login Failed',
+          message: errorMessage,
+          type: 'error',
+        });
       }
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Login failed. Please try again.');
+      setAlertConfig({
+        visible: true,
+        title: 'Login Failed',
+        message: 'Something went wrong. Please check your internet connection and try again.',
+        type: 'error',
+      });
     }
   };
 
@@ -200,6 +234,15 @@ const LoginScreen = ({ navigation }) => {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        confirmText="OK"
+      />
     </SafeAreaView>
   );
 };

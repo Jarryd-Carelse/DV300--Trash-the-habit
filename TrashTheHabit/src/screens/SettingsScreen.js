@@ -5,16 +5,21 @@ import {
   StyleSheet,
   ScrollView,
   Switch,
-  Alert,
   TouchableOpacity,
   Animated,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import FloatingNavbar from '../components/FloatingNavbar';
+import CustomAlert from '../components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getUserSettings, saveUserSettings, clearAllData, setLoginStatus } from '../utils/storage';
+import { getUserSettings, saveUserSettings, clearAllData } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { deleteUser, refreshUserSession } from '../config/firebase';
 
 // Move SettingItem outside to prevent recreation on every render
 const SettingItem = React.memo(({ title, subtitle, icon, onPress, showSwitch = false, switchValue = false, onSwitchChange, index = 0 }) => {
@@ -89,8 +94,6 @@ const SettingItem = React.memo(({ title, subtitle, icon, onPress, showSwitch = f
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
-            trackColor={{ false: COLORS.lightGray, true: COLORS.primary + '40' }}
-            thumbColor={switchValue ? COLORS.primary : COLORS.gray}
           />
         ) : (
           <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
@@ -107,7 +110,17 @@ const SettingsScreen = ({ navigation }) => {
     hapticsEnabled: true,
     notificationsEnabled: true,
   });
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+  const [alertQueue, setAlertQueue] = useState([]);
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   const [currentRoute, setCurrentRoute] = useState('Settings');
+  const { logout } = useAuth();
 
   // Twinning animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -160,6 +173,22 @@ const SettingsScreen = ({ navigation }) => {
     navigation.navigate(routeName);
   };
 
+  const showNextAlert = () => {
+    if (alertQueue.length > 0) {
+      const nextAlert = alertQueue[0];
+      setAlertConfig(nextAlert);
+      setAlertQueue(prev => prev.slice(1));
+    }
+  };
+
+  const addToAlertQueue = (alert) => {
+    setAlertQueue(prev => [...prev, alert]);
+    if (alertQueue.length === 0) {
+      // If this is the first alert, show it immediately
+      setAlertConfig(alert);
+    }
+  };
+
   const updateSetting = async (key, value) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
@@ -182,44 +211,143 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const handleClearAllData = () => {
-    Alert.alert(
-      'Clear All Data',
-      'This will delete all your habits and progress. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            await clearAllData();
-            Alert.alert('Success', 'All data has been cleared');
-          },
+    if (!showPasswordInput) {
+      // First show password input
+      setShowPasswordInput(true);
+      setAlertConfig({
+        visible: true,
+        title: 'Enter Password to Delete Account',
+        message: 'Please enter your password to confirm account deletion. This action cannot be undone.',
+        type: 'warning',
+        showCancel: true,
+        confirmText: 'Continue',
+        cancelText: 'Cancel',
+        onConfirm: () => {
+          if (deletePassword.trim()) {
+            performAccountDeletion(deletePassword);
+          } else {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: 'Please enter your password',
+              type: 'error',
+            });
+          }
         },
-      ]
-    );
+      });
+    }
+  };
+
+  const performAccountDeletion = async (password) => {
+    try {
+      // First clear all local data
+      await clearAllData();
+      
+      // Then delete the user from the database
+      const result = await deleteUser(password);
+      
+      if (result.success) {
+        setAlertConfig({
+          visible: true,
+          title: 'Account Deleted',
+          message: 'Your account and all data have been permanently deleted. You will be redirected to the login screen.',
+          type: 'success',
+          autoClose: true,
+          autoCloseDelay: 2000,
+        });
+        
+        // Reset password input state
+        setShowPasswordInput(false);
+        setDeletePassword('');
+        
+        // The AuthContext will automatically redirect to login
+        // after the user is signed out
+      } else {
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: result.error || 'Failed to delete account. Please try again.',
+          type: 'error',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to delete account. Please try again.',
+        type: 'error',
+      });
+    }
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await setLoginStatus(false);
-              navigation.replace('Login');
-            } catch (error) {
-              console.error('Error during logout:', error);
-              navigation.replace('Login');
-            }
+    // Add all alerts to the queue
+    addToAlertQueue({
+      visible: true,
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      type: 'warning',
+      showCancel: true,
+      confirmText: 'Yes, Logout',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        // Show second confirmation about habits
+        addToAlertQueue({
+          visible: true,
+          title: 'Wait! Have you broken all your habits today? ?',
+          message: 'Make sure you\'ve completed your daily habit goals before logging out.',
+          type: 'info',
+          showCancel: true,
+          confirmText: 'Yes, I\'m done',
+          cancelText: 'No, let me check',
+          onConfirm: () => {
+            // Show final confirmation
+            addToAlertQueue({
+              visible: true,
+              title: 'Final Confirmation 😂',
+              message: 'Are you absolutely sure you want to logout? You won\'t be able to track today\'s progress.',
+              type: 'warning',
+              showCancel: true,
+              confirmText: 'Yes, Logout Now',
+              cancelText: 'No, take me to habits',
+              onConfirm: async () => {
+                try {
+                  const result = await logout();
+                  if (result.success) {
+                    // Logout successful, user will be automatically redirected to login screen
+                    // by the AuthContext
+                  } else {
+                    addToAlertQueue({
+                      visible: true,
+                      title: 'Error',
+                      message: result.error || 'Logout failed. Please try again.',
+                      type: 'error',
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error during logout:', error);
+                  addToAlertQueue({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Logout failed. Please try again.',
+                    type: 'error',
+                  });
+                }
+              },
+              onCancel: () => {
+                // Navigate to habit screen
+                navigation.navigate('Home');
+              },
+            });
           },
-        },
-      ]
-    );
+          onCancel: () => {
+            // Navigate to habit screen
+            navigation.navigate('Home');
+          },
+        });
+      },
+    });
   };
 
   return (
@@ -252,11 +380,13 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Navigation</Text>
           <SettingItem
-            title="Navbar Position"
-            subtitle="Choose where the navigation bar appears"
-            icon="navigate"
-            onPress={() => {
-              const newPosition = settings.navbarPosition === 'right' ? 'left' : 'right';
+            title="Are you using your left or right hand?"
+            subtitle={`Currently: ${settings.navbarPosition === 'right' ? 'Right hand (Right side)' : 'Left hand (Left side)'}`}
+            icon="hand-left"
+            showSwitch
+            switchValue={settings.navbarPosition === 'right'}
+            onSwitchChange={(value) => {
+              const newPosition = value ? 'right' : 'left';
               updateSetting('navbarPosition', newPosition);
             }}
             index={0}
@@ -295,10 +425,10 @@ const SettingsScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data</Text>
+          <Text style={styles.sectionTitle}>Account</Text>
           <SettingItem
-            title="Clear All Data"
-            subtitle="Delete all habits and progress"
+            title="Delete Account & All Data"
+            subtitle="Permanently delete your account and all data"
             icon="trash"
             onPress={handleClearAllData}
             index={4}
@@ -316,6 +446,91 @@ const SettingsScreen = ({ navigation }) => {
           />
         </View>
       </ScrollView>
+
+      {/* Password Input Modal for Account Deletion */}
+      {showPasswordInput && (
+        <KeyboardAvoidingView 
+          style={styles.passwordModal}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <View style={styles.passwordModalContent}>
+            <Text style={styles.passwordModalTitle}>Enter Your Password</Text>
+            <Text style={styles.passwordModalMessage}>
+              To confirm account deletion, please enter your password
+            </Text>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter password"
+              placeholderTextColor={COLORS.textSecondary}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (deletePassword.trim()) {
+                  performAccountDeletion(deletePassword);
+                } else {
+                  setAlertConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Please enter your password',
+                    type: 'error',
+                  });
+                }
+              }}
+            />
+            <View style={styles.passwordModalButtons}>
+              <TouchableOpacity
+                style={[styles.passwordModalButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowPasswordInput(false);
+                  setDeletePassword('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.passwordModalButton, styles.confirmButton]}
+                onPress={() => {
+                  if (deletePassword.trim()) {
+                    performAccountDeletion(deletePassword);
+                  } else {
+                    setAlertConfig({
+                      visible: true,
+                      title: 'Error',
+                      message: 'Please enter your password',
+                      type: 'error',
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onClose={() => {
+          setAlertConfig({ ...alertConfig, visible: false });
+          // Show next alert in queue after a short delay
+          setTimeout(() => {
+            showNextAlert();
+          }, 300);
+        }}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
 
       <FloatingNavbar
         currentRoute={currentRoute}
@@ -339,25 +554,31 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   headerLeft: {
     flex: 1,
+    alignItems: 'center',
+    marginRight: -SPACING.xl,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.extraLarge,
     color: COLORS.text,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   profileButton: {
-    padding: SPACING.sm,
+    paddingLeft: SPACING.xxs,
+    paddingRight: SPACING.xs,
+    paddingVertical: SPACING.sm,
   },
   content: {
     flex: 1,
@@ -425,6 +646,81 @@ const styles = StyleSheet.create({
     ...FONTS.regular,
     fontSize: SIZES.small,
     color: COLORS.textSecondary,
+  },
+  // Password Modal Styles
+  passwordModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  passwordModalContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SPACING.xl,
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'center',
+    maxHeight: '80%',
+  },
+  passwordModalTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  passwordModalMessage: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  passwordInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZES.radius,
+    padding: SPACING.md,
+    fontSize: SIZES.font,
+    color: COLORS.text,
+    backgroundColor: COLORS.background,
+    marginBottom: SPACING.lg,
+  },
+  passwordModalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    width: '100%',
+  },
+  passwordModalButton: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    borderRadius: SIZES.radius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: COLORS.border,
+  },
+  confirmButton: {
+    backgroundColor: COLORS.error,
+  },
+  cancelButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+  },
+  confirmButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.font,
+    color: COLORS.white,
   },
 });
 

@@ -5,19 +5,22 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import FloatingNavbar from '../components/FloatingNavbar';
+import CustomAlert from '../components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
-import { getHabitsData, saveHabitsData, getUserSettings } from '../utils/storage';
+import { getUserSettings } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { createHabit, getUserHabits, deleteHabit } from '../config/firebase';
 
 const AddHabitScreen = ({ navigation }) => {
   const [habitName, setHabitName] = useState('');
+  const [habitDescription, setHabitDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -28,17 +31,24 @@ const AddHabitScreen = ({ navigation }) => {
     hapticsEnabled: true,
     notificationsEnabled: true,
   });
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+  const { user } = useAuth();
 
-  // Predefined habit categories
+  // Predefined habit categories for breaking bad habits
   const habitCategories = [
-    'Health & Fitness',
-    'Productivity',
-    'Learning',
-    'Relationships',
-    'Finance',
-    'Mindfulness',
-    'Creativity',
-    'Other'
+    'Smoking & Vaping',
+    'Unhealthy Eating',
+    'Procrastination',
+    'Social Media',
+    'Gaming',
+    'Overspending',
+    'Negative Thinking',
+    'Other Bad Habit'
   ];
 
   // Twinning animations
@@ -52,7 +62,6 @@ const AddHabitScreen = ({ navigation }) => {
     loadHabits();
     loadSettings();
     
-   
     Animated.parallel([
       Animated.spring(headerAnim, {
         toValue: 1,
@@ -71,9 +80,14 @@ const AddHabitScreen = ({ navigation }) => {
 
   const loadHabits = async () => {
     try {
-      const habitsData = await getHabitsData();
-      if (habitsData) {
-        setHabits(habitsData.filter(habit => habit.isActive));
+      if (user) {
+        const unsubscribe = getUserHabits((habitsData) => {
+          setHabits(habitsData.active || []);
+        });
+        
+        return () => {
+          if (unsubscribe) unsubscribe();
+        };
       }
     } catch (error) {
       console.error('Error loading habits:', error);
@@ -97,115 +111,154 @@ const AddHabitScreen = ({ navigation }) => {
   };
 
   const handleAddHabit = async () => {
-    if (!selectedCategory) {
-      Alert.alert('Error', 'Please select a category first');
+    if (!habitName.trim()) {
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Please enter a habit name',
+        type: 'error',
+      });
       return;
     }
-    
-    if (!habitName.trim()) {
-      // Shake animation for validation error
-      Animated.sequence([
-        Animated.timing(formAnim, {
-          toValue: 0.95,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(formAnim, {
-          toValue: 1.05,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(formAnim, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-      Alert.alert('Error', 'Please enter a habit name');
+
+    if (!selectedCategory) {
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Please select a category',
+        type: 'error',
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      const newHabit = {
-        id: Date.now().toString(),
+      const habitData = {
         name: habitName.trim(),
+        description: habitDescription.trim(),
         category: selectedCategory,
-        createdAt: new Date().toISOString(),
-        completedCount: 0,
-        trashedCount: 0,
-        isActive: true,
+        isActive: true
       };
 
-      const updatedHabits = [...habits, newHabit];
-      setHabits(updatedHabits);
-      await saveHabitsData(updatedHabits);
+      const result = await createHabit(habitData);
+      
+      if (result.success) {
+        // Success animation
+        Animated.sequence([
+          Animated.timing(successAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.delay(1000),
+          Animated.timing(successAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
 
-      setHabitName('');
-      setSelectedCategory('');
-      
-      // Success animation
-      Animated.sequence([
-        Animated.timing(successAnim, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.delay(1500), 
-        Animated.timing(successAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-    
+        // Reset form
+        setHabitName('');
+        setHabitDescription('');
+        setSelectedCategory('');
+        
+        // Navigate back to home
+        setTimeout(() => {
+          navigation.navigate('Home');
+        }, 1500);
+      } else {
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: result.error || 'Failed to create habit',
+          type: 'error',
+        });
+      }
     } catch (error) {
-      console.error('Error adding habit:', error);
-      Alert.alert('Error', 'Failed to add habit');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to create habit. Please try again.',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    
+    // Category selection animation
+    Animated.sequence([
+      Animated.timing(categoryAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(categoryAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handleDeleteHabit = async (habitId) => {
-    Alert.alert(
-      'Delete Habit',
-      'Are you sure you want to delete this habit?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const updatedHabits = habits.filter(h => h.id !== habitId);
-              setHabits(updatedHabits);
-              await saveHabitsData(updatedHabits);
-              
-              // Delete animation
-              Animated.sequence([
-                Animated.timing(deleteAnim, {
-                  toValue: 0.8,
-                  duration: 200,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(deleteAnim, {
-                  toValue: 1,
-                  duration: 200,
-                  useNativeDriver: true,
-                }),
-              ]).start();
-            } catch (error) {
-              console.error('Error deleting habit:', error);
-              Alert.alert('Error', 'Failed to delete habit');
-            }
+    setAlertConfig({
+      visible: true,
+      title: 'Remove Bad Habit',
+      message: 'Are you sure you want to remove this habit from your list? This action cannot be undone.',
+      type: 'warning',
+      showCancel: true,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          // First delete from Firestore database
+          const result = await deleteHabit(habitId);
+          
+          if (result.success) {
+            // Animate deletion after successful database deletion
+            Animated.timing(deleteAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => {
+              // Remove from local state
+              setHabits(prev => prev.filter(h => h.id !== habitId));
+              deleteAnim.setValue(1);
+            });
+            
+            setAlertConfig({
+              visible: true,
+              title: 'Success',
+              message: 'Bad habit removed successfully',
+              type: 'success',
+              autoClose: true,
+              autoCloseDelay: 2000,
+            });
+          } else {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: result.error || 'Failed to delete habit from database',
+              type: 'error',
+            });
           }
-        },
-      ]
-    );
+        } catch (error) {
+          console.error('Error deleting habit:', error);
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Failed to delete habit. Please try again.',
+            type: 'error',
+          });
+        }
+      },
+    });
   };
 
   const renderHabitItem = (habit) => {
@@ -226,7 +279,7 @@ const AddHabitScreen = ({ navigation }) => {
           onPress={() => handleDeleteHabit(habit.id)}
           activeOpacity={0.7}
         >
-          <Ionicons name="trash" size={20} color={COLORS.accent} />
+          <Ionicons name="close-circle" size={20} color={COLORS.error} />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -243,8 +296,8 @@ const AddHabitScreen = ({ navigation }) => {
           })}] }
         ]}
       >
-        <Text style={styles.title}>Build New Habits</Text>
-        <Text style={styles.subtitle}>Choose a category and start your journey</Text>
+        <Text style={styles.title}>Break Bad Habits</Text>
+        <Text style={styles.subtitle}>Choose a habit you want to break and start your journey</Text>
       </Animated.View>
 
       <ScrollView 
@@ -273,7 +326,7 @@ const AddHabitScreen = ({ navigation }) => {
               }
             ]}
           >
-            <Text style={styles.categoryTitle}>Choose a Category</Text>
+            <Text style={styles.categoryTitle}>Choose a Bad Habit Category</Text>
             <View style={styles.categoryGrid}>
               {habitCategories.map((category) => (
                 <TouchableOpacity
@@ -282,7 +335,7 @@ const AddHabitScreen = ({ navigation }) => {
                     styles.categoryButton,
                     selectedCategory === category && styles.selectedCategoryButton
                   ]}
-                  onPress={() => setSelectedCategory(category)}
+                  onPress={() => handleCategorySelect(category)}
                   activeOpacity={0.7}
                 >
                   <Text style={[
@@ -297,16 +350,27 @@ const AddHabitScreen = ({ navigation }) => {
           </Animated.View>
 
           <CustomInput
-            label="Habit Name"
+            label="Bad Habit Name"
             placeholder={selectedCategory ? `Enter your ${selectedCategory.toLowerCase()} habit...` : "Select a category first..."}
             value={habitName}
             onChangeText={setHabitName}
             style={styles.input}
             editable={!!selectedCategory}
           />
+
+          <CustomInput
+            label="Why You Want to Break It (Optional)"
+            placeholder="Add a reason to help motivate you..."
+            value={habitDescription}
+            onChangeText={setHabitDescription}
+            style={styles.input}
+            editable={!!selectedCategory}
+            multiline
+            numberOfLines={3}
+          />
           
           <CustomButton
-            title={selectedCategory ? "Add Habit" : "Select Category First"}
+            title={selectedCategory ? "Add Bad Habit to Break" : "Select Category First"}
             onPress={handleAddHabit}
             loading={loading}
             style={[styles.addButton, !selectedCategory && styles.disabledButton]}
@@ -316,7 +380,7 @@ const AddHabitScreen = ({ navigation }) => {
 
         {habits.length > 0 && (
           <View style={styles.habitsList}>
-            <Text style={styles.sectionTitle}>Your Current Habits</Text>
+            <Text style={styles.sectionTitle}>Your Bad Habits to Break</Text>
             {habits.map(renderHabitItem)}
           </View>
         )}
@@ -346,12 +410,26 @@ const AddHabitScreen = ({ navigation }) => {
             <View style={styles.successIconContainer}>
               <Ionicons name="checkmark-circle" size={80} color={COLORS.white} />
             </View>
-            <Text style={styles.successTitle}>Habit Added!</Text>
-            <Text style={styles.successMessage}>You're one step closer to your goals!</Text>
-            <Text style={styles.successSubtext}>Keep building those positive habits!</Text>
+            <Text style={styles.successTitle}>Bad Habit Added!</Text>
+            <Text style={styles.successMessage}>You're one step closer to breaking free!</Text>
+            <Text style={styles.successSubtext}>Stay strong, you can beat this habit!</Text>
           </Animated.View>
         </Animated.View>
       )}
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+        onConfirm={alertConfig.onConfirm}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
 
       <FloatingNavbar
         currentRoute={currentRoute}
@@ -378,11 +456,13 @@ const styles = StyleSheet.create({
     fontSize: SIZES.extraLarge,
     color: COLORS.text,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.font,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   content: {
     flex: 1,

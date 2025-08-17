@@ -6,14 +6,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Image,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import CustomAlert from '../components/CustomAlert';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
 
 const SignUpScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -21,6 +22,13 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+  const { signup } = useAuth();
 
   // Twinning animations
   const formAnim = useRef(new Animated.Value(1)).current;
@@ -79,34 +87,51 @@ const SignUpScreen = ({ navigation }) => {
 
     setLoading(true);
     
-    setTimeout(() => {
+    try {
+      const result = await signup(email, password);
+      
+      if (result.success) {
+        // Success animation
+        Animated.sequence([
+          Animated.timing(successAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(successAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        
+        setLoading(false);
+        setAlertConfig({
+          visible: true,
+          title: 'Success',
+          message: 'Account created successfully!',
+          type: 'success',
+          autoClose: true,
+          autoCloseDelay: 2000,
+        });
+      } else {
+        setLoading(false);
+        setAlertConfig({
+          visible: true,
+          title: 'Error',
+          message: result.error || 'Sign up failed. Please try again.',
+          type: 'error',
+        });
+      }
+    } catch (error) {
       setLoading(false);
-      
-      // Success animation
-      Animated.sequence([
-        Animated.timing(successAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(successAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-      Alert.alert(
-        'Success',
-        'Account created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.replace('Home'),
-          },
-        ]
-      );
-    }, 1000);
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Sign up failed. Please try again.',
+        type: 'error',
+      });
+    }
   };
 
   const handleBackToLogin = () => {
@@ -215,6 +240,16 @@ const SignUpScreen = ({ navigation }) => {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        autoClose={alertConfig.autoClose}
+        autoCloseDelay={alertConfig.autoCloseDelay}
+      />
     </SafeAreaView>
   );
 };

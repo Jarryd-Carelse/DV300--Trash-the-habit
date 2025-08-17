@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HabitScreen from '../screens/HabitScreen';
 import AddHabitScreen from '../screens/AddHabitScreen';
@@ -7,31 +7,16 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { getLoginStatus } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import LoadingScreen from '../components/LoadingScreen';
 
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, loading } = useAuth();
 
-  useEffect(() => {
-    checkLoginStatus();
-  }, []);
-
-  const checkLoginStatus = async () => {
-    try {
-      const loginStatus = await getLoginStatus();
-      setIsLoggedIn(loginStatus);
-    } catch (error) {
-      console.error('Error checking login status:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return null; 
+  if (loading) {
+    return <LoadingScreen message="Checking authentication..." />;
   }
 
   return (
@@ -39,15 +24,24 @@ const AppNavigator = () => {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName={isLoggedIn ? "Home" : "Login"}
+      initialRouteName={isAuthenticated ? "Home" : "Login"}
     >
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} />
-      <Stack.Screen name="Home" component={HabitScreen} />
-      <Stack.Screen name="AddHabit" component={AddHabitScreen} />
-      <Stack.Screen name="Progress" component={ProgressScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
+      {!isAuthenticated ? (
+        // Auth screens
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+        </>
+      ) : (
+        // App screens
+        <>
+          <Stack.Screen name="Home" component={HabitScreen} />
+          <Stack.Screen name="AddHabit" component={AddHabitScreen} />
+          <Stack.Screen name="Progress" component={ProgressScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+        </>
+      )}
     </Stack.Navigator>
   );
 };
