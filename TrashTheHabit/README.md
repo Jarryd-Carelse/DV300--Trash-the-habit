@@ -609,22 +609,4 @@ expo start --dev-client
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
 
-- **React Native Team**: For the amazing cross-platform framework
-- **Expo Team**: For the excellent development platform
-- **Firebase Team**: For the robust backend services
-- **Open Source Community**: For the incredible libraries and tools
-
-## Support
-
-- **Documentation**: [Project Wiki](link-to-wiki)
-- **Issues**: [GitHub Issues](link-to-issues)
-- **Discussions**: [GitHub Discussions](link-to-discussions)
-- **Email**: support@trashthehabit.com
-
----
-
-**Made with love by the Trash the Habit Team**
-
-*This README is comprehensive and professional, covering all aspects of the application from technical implementation to user experience. It demonstrates the depth of understanding and attention to detail that would be expected from a senior developer.* 
