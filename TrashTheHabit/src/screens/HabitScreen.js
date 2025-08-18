@@ -664,11 +664,9 @@ const styles = StyleSheet.create({
   },
   completeZone: {
     borderColor: COLORS.success,
-    backgroundColor: COLORS.success + '10',
   },
   failedZone: {
-    backgroundColor: COLORS.error + '20',
-    borderColor: COLORS.error + '40',
+    borderColor: COLORS.error,
   },
   dropZoneContent: {
     alignItems: 'center',
