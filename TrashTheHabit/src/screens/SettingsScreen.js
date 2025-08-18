@@ -94,6 +94,9 @@ const SettingItem = React.memo(({ title, subtitle, icon, onPress, showSwitch = f
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
+            trackColor={{ false: COLORS.border, true: COLORS.success + '40' }}
+            thumbColor={switchValue ? COLORS.success : COLORS.gray}
+            ios_backgroundColor={COLORS.border}
           />
         ) : (
           <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
