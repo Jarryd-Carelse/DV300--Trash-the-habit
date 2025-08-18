@@ -16,7 +16,7 @@ const AppNavigator = () => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <LoadingScreen message="Checking authentication..." />;
+    return <LoadingScreen message="Loading" />;
   }
 
   return (

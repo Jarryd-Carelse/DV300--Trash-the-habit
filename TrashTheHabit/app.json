@@ -14,7 +14,8 @@
           "photosPermission": "This app accesses your photos to let you choose profile pictures.",
           "cameraPermission": "This app uses the camera to let you take profile pictures."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "splash": {
       "image": "./assets/splash-ico.png",
@@ -55,7 +56,10 @@
     "web": {
       "favicon": "./assets/favico.png"
     },
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "assetBundlePatterns": [
       "**/*"
     ]
