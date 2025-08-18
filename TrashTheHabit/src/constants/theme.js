@@ -19,11 +19,14 @@ export const COLORS = {
 
 export const SIZES = {
   base: 8,
+  xs: 10,
   small: 12,
   font: 14,
   medium: 16,
   large: 18,
   extraLarge: 24,
+  xxl: 32,
+  xxxl: 40,
   padding: 16,
   radius: 12,
   buttonHeight: 50,
@@ -31,21 +34,87 @@ export const SIZES = {
 };
 
 export const FONTS = {
+  light: {
+    fontFamily: 'Inter_300Light',
+    fontWeight: '300',
+  },
   regular: {
-    fontFamily: 'System',
+    fontFamily: 'Inter_400Regular',
     fontWeight: '400',
   },
   medium: {
-    fontFamily: 'System',
+    fontFamily: 'Inter_500Medium',
     fontWeight: '500',
   },
+  semiBold: {
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+  },
   bold: {
-    fontFamily: 'System',
+    fontFamily: 'Inter_700Bold',
     fontWeight: '700',
   },
-  light: {
-    fontFamily: 'System',
-    fontWeight: '300',
+  extraBold: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontWeight: '800',
+  },
+  black: {
+    fontFamily: 'Inter_900Black',
+    fontWeight: '900',
+  },
+};
+
+// Typography presets for consistent text styling
+export const TYPOGRAPHY = {
+  h1: {
+    ...FONTS.black,
+    fontSize: SIZES.xxl,
+    lineHeight: SIZES.xxl * 1.2,
+  },
+  h2: {
+    ...FONTS.extraBold,
+    fontSize: SIZES.extraLarge,
+    lineHeight: SIZES.extraLarge * 1.2,
+  },
+  h3: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    lineHeight: SIZES.large * 1.2,
+  },
+  h4: {
+    ...FONTS.semiBold,
+    fontSize: SIZES.medium,
+    lineHeight: SIZES.medium * 1.2,
+  },
+  body: {
+    ...FONTS.regular,
+    fontSize: SIZES.font,
+    lineHeight: SIZES.font * 1.4,
+  },
+  bodyLarge: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    lineHeight: SIZES.medium * 1.4,
+  },
+  bodySmall: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    lineHeight: SIZES.small * 1.4,
+  },
+  caption: {
+    ...FONTS.medium,
+    fontSize: SIZES.xs,
+    lineHeight: SIZES.xs * 1.2,
+  },
+  button: {
+    ...FONTS.semiBold,
+    fontSize: SIZES.font,
+    lineHeight: SIZES.font * 1.2,
+  },
+  label: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    lineHeight: SIZES.small * 1.2,
   },
 };
 
