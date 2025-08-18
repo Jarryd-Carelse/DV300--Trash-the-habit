@@ -116,7 +116,7 @@ const SettingsScreen = ({ navigation }) => {
     message: '',
     type: 'info',
   });
-  const [alertQueue, setAlertQueue] = useState([]);
+
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [currentRoute, setCurrentRoute] = useState('Settings');
@@ -173,21 +173,7 @@ const SettingsScreen = ({ navigation }) => {
     navigation.navigate(routeName);
   };
 
-  const showNextAlert = () => {
-    if (alertQueue.length > 0) {
-      const nextAlert = alertQueue[0];
-      setAlertConfig(nextAlert);
-      setAlertQueue(prev => prev.slice(1));
-    }
-  };
 
-  const addToAlertQueue = (alert) => {
-    setAlertQueue(prev => [...prev, alert]);
-    if (alertQueue.length === 0) {
-      // If this is the first alert, show it immediately
-      setAlertConfig(alert);
-    }
-  };
 
   const updateSetting = async (key, value) => {
     const newSettings = { ...settings, [key]: value };
@@ -282,8 +268,7 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const handleLogout = async () => {
-    // Add all alerts to the queue
-    addToAlertQueue({
+    setAlertConfig({
       visible: true,
       title: 'Logout',
       message: 'Are you sure you want to logout?',
@@ -291,61 +276,29 @@ const SettingsScreen = ({ navigation }) => {
       showCancel: true,
       confirmText: 'Yes, Logout',
       cancelText: 'Cancel',
-      onConfirm: () => {
-        // Show second confirmation about habits
-        addToAlertQueue({
-          visible: true,
-          title: 'Wait! Have you broken all your habits today? ?',
-          message: 'Make sure you\'ve completed your daily habit goals before logging out.',
-          type: 'info',
-          showCancel: true,
-          confirmText: 'Yes, I\'m done',
-          cancelText: 'No, let me check',
-          onConfirm: () => {
-            // Show final confirmation
-            addToAlertQueue({
+      onConfirm: async () => {
+        try {
+          const result = await logout();
+          if (result.success) {
+            // Logout successful, user will be automatically redirected to login screen
+            // by the AuthContext
+          } else {
+            setAlertConfig({
               visible: true,
-              title: 'Final Confirmation 😂',
-              message: 'Are you absolutely sure you want to logout? You won\'t be able to track today\'s progress.',
-              type: 'warning',
-              showCancel: true,
-              confirmText: 'Yes, Logout Now',
-              cancelText: 'No, take me to habits',
-              onConfirm: async () => {
-                try {
-                  const result = await logout();
-                  if (result.success) {
-                    // Logout successful, user will be automatically redirected to login screen
-                    // by the AuthContext
-                  } else {
-                    addToAlertQueue({
-                      visible: true,
-                      title: 'Error',
-                      message: result.error || 'Logout failed. Please try again.',
-                      type: 'error',
-                    });
-                  }
-                } catch (error) {
-                  console.error('Error during logout:', error);
-                  addToAlertQueue({
-                    visible: true,
-                    title: 'Error',
-                    message: 'Logout failed. Please try again.',
-                    type: 'error',
-                  });
-                }
-              },
-              onCancel: () => {
-                // Navigate to habit screen
-                navigation.navigate('Home');
-              },
+              title: 'Error',
+              message: result.error || 'Logout failed. Please try again.',
+              type: 'error',
             });
-          },
-          onCancel: () => {
-            // Navigate to habit screen
-            navigation.navigate('Home');
-          },
-        });
+          }
+        } catch (error) {
+          console.error('Error during logout:', error);
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Logout failed. Please try again.',
+            type: 'error',
+          });
+        }
       },
     });
   };
@@ -523,10 +476,6 @@ const SettingsScreen = ({ navigation }) => {
         onConfirm={alertConfig.onConfirm}
         onClose={() => {
           setAlertConfig({ ...alertConfig, visible: false });
-          // Show next alert in queue after a short delay
-          setTimeout(() => {
-            showNextAlert();
-          }, 300);
         }}
         autoClose={alertConfig.autoClose}
         autoCloseDelay={alertConfig.autoCloseDelay}
