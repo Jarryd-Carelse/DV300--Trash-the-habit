@@ -80,6 +80,16 @@
 
 *[Screenshots would be added here showing the main interface, drag-and-drop functionality, and various screens]*
 
+### Live Demo Walkthrough
+🎥 **[Watch the Live Demo Walkthrough](https://drive.google.com/file/d/1fd1znmccBQrwpr9xL-koa69gRp3yZIjh/view?usp=sharing)**
+
+The Demo showcases:
+- User authentication and signup flows
+- Interactive drag-and-drop habit management
+- Real-time progress tracking and analytics
+- Customizable settings and navigation
+- Profile management and avatar customization
+
 ## Technology Stack
 
 ### **Frontend Framework**
